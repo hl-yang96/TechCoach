@@ -1,0 +1,60 @@
+# TechCoach - Modular Monolith Docker Configuration
+# File: docker-compose.yml
+# Created: 2025-07-17
+# Purpose: Container orchestration for TechCoach AI career coaching platform
+# Includes: FastAPI backend, ChromaDB vector storage, and persistent volumes
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=sqlite:///app/data/techcoach.db
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONPATH=/app
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./app_data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - chroma
+    restart: unless-stopped
+    networks:
+      - techcoach-network
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    restart: unless-stopped
+    networks:
+      - techcoach-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - techcoach-network
+
+volumes:
+  chroma_data:
+    driver: local
+
+networks:
+  techcoach-network:
+    driver: bridge
