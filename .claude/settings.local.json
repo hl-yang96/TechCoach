@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(PYTHONPATH=. python app/main.py)",
+      "Bash(timeout:*)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)"
     ],
     "deny": []
   }

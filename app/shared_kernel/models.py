@@ -92,7 +92,7 @@ class Question(BaseEntity):
     title: str
     content: str
     category: QuestionType
-    difficulty: str = Field("medium", regex=r"^easy|medium|hard$")
+    difficulty: str = Field("medium", pattern=r"^easy|medium|hard$")
     topics: List[str] = Field(default_factory=list)
     expected_answer_points: List[str] = Field(default_factory=list)
     context_references: List[str] = Field(default_factory=list)

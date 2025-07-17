@@ -7,15 +7,12 @@ Purpose: Health check endpoints for API monitoring and service discovery
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from typing import Dict, Any
-import asyncio
-
-from ...shared_kernel.models import BaseModel as SharedBaseModel
+from typing import Dict, Any, Optional
 
 router = APIRouter()
 
 
-class HealthResponse(SharedBaseModel):
+class HealthResponse(BaseModel):
     """Response model for health check endpoints."""
     status: str
     timestamp: str

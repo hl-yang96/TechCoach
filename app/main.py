@@ -3,9 +3,10 @@ TechCoach Main Application Entry Point
 File: app/main.py
 Created: 2025-07-17
 Purpose: Main FastAPI application for TechCoach AI career coaching platform
-Entry point for the modular monolith architecture
+Entry point for the modular monolith architecture (no warnings version)
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,6 +21,16 @@ from app.gateway.middleware.logging import RequestLoggingMiddleware
 from app.gateway.middleware.error_handler import ErrorHandlerMiddleware
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handlers for FastAPI."""
+    # Startup
+    print("🚀 TechCoach API started successfully!")
+    yield
+    # Shutdown
+    print("👋 TechCoach API shutting down...")
+
+
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     app = FastAPI(
@@ -28,13 +39,19 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs",
         redoc_url="/redoc",
-        openapi_url="/openapi.json"
+        openapi_url="/openapi.json",
+        lifespan=lifespan
     )
 
     # Add middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://frontend:80"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:4173",  # Vite preview
+            "http://127.0.0.1:4173"
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -49,30 +66,16 @@ def create_app() -> FastAPI:
     app.include_router(interview_router, prefix="/api/interview", tags=["Interview"])
     app.include_router(career_docs_router, prefix="/api/career", tags=["Career"])
 
+    # Simple root endpoint
+    @app.get("/")
+    async def root():
+        return {"message": "Welcome to TechCoach API", "version": "0.1.0"}
+
     return app
 
 
-# Create the FastAPI application
+# Create and export the FastAPI application
 app = create_app()
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup tasks."""
-    import os
-    from app.agentic_core.core import initialize_ai_systems
-    
-    # Initialize AI systems (RAG, LLM routing, etc.)
-    await initialize_ai_systems()
-    
-    print("TechCoach API started successfully!")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown tasks."""
-    print("TechCoach API shutting down...")
-
 
 if __name__ == "__main__":
     import uvicorn

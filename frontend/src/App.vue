@@ -2,20 +2,26 @@
   <div id="app">
     <el-container style="min-height: 100vh;">
       <el-header style="background: #001529; color: white; display: flex; align-items: center; padding: 0 20px;">
-        <div style="font-size: 1.5em; font-weight: bold;">TechCoach</div>
-        <el-menu
-          mode="horizontal"
-          background-color="#001529"
-          text-color="#fff"
-          active-text-color="#ffd04b"
-          :router="true"
-          :default-active="$route.path"
-        >
-          <el-menu-item index="/">Dashboard</el-menu-item>
-          <el-menu-item index="/interview">Interview Prep</el-menu-item>
-          <el-menu-item index="/upload">Documents</el-menu-item>
-          <el-menu-item index="/career">Career</el-menu-item>
-        </el-menu>
+        <div style="font-size: 1.5em; font-weight: bold; margin-right: 40px;">TechCoach</div>
+        <div style="display: flex; align-items: center; flex: 1;">
+          <el-menu
+            mode="horizontal"
+            background-color="#001529"
+            text-color="#fff"
+            active-text-color="#ffd04b"
+            :router="true"
+            :default-active="$route.path"
+            style="border-bottom: none;"
+          >
+            <el-menu-item index="/">Dashboard</el-menu-item>
+            <el-menu-item index="/interview">Interview Prep</el-menu-item>
+            <el-menu-item index="/upload">Documents</el-menu-item>
+            <el-menu-item index="/career">Career</el-menu-item>
+          </el-menu>
+          
+          <!-- Health Check Component -->
+          <NavigationHealth />
+        </div>
       </el-header>
       
       <el-main>
