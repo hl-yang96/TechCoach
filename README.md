@@ -2,6 +2,10 @@
 
 Welcome to **TechCoach**, your personalized AI career coach that combines Retrieval Augmented Generation (RAG) with Agentic AI to provide customized interview preparation, resume optimization, and career guidance.
 
+## Current Status
+- Still in development
+- Welcome for requests!
+
 ## 🎯 Project Overview
 
 **TechCoach** is a **modular monolith** architecture designed for rapid development with future microservice extraction capability. This approach provides the simplicity of a monolith while maintaining clear module boundaries for scalability.
