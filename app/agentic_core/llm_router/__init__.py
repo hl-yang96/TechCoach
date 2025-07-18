@@ -1,6 +1,28 @@
 """
-LLM Router Module
-File: app/agentic_core/llm_router/__init__.py
-Created: 2025-07-17
-Purpose: Dynamic LLM model selection based on task type, cost, and performance
+TechCoach - LangChain LLM Integration Module
+Package: agentic_core/llm
+Purpose: Simplified LLM interface using LangChain for AI career coaching
+Features:
+- Single provider support via configuration
+- LangChain-based unified interface
+- Simple chat functionality
+- Easy configuration via YAML with environment fallback
 """
+
+from .llm_client import (
+    LLMClient,
+    LLMConfig,
+    get_llm_client,
+    LLMProvider
+)
+
+# Re-export main components
+__all__ = [
+    'LLMClient',
+    'LLMConfig',
+    'get_llm_client',
+    'LLMProvider'
+]
+
+# Version info
+__version__ = "0.2.0"

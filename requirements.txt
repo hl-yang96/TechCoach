@@ -19,3 +19,24 @@ aiosqlite>=0.19.0
 # Additional utilities
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
+
+# LangChain dependencies for the refactored LLM integration
+langchain==0.3.12
+langchain-core==0.3.24
+langchain-community==0.3.12
+
+# Specific provider packages
+langchain-openai==0.2.12
+langchain-anthropic==0.1.16
+langchain-google-genai==1.0.9
+
+# ChatOpenAI for provider clients that use OpenAI format
+langchain-community==0.3.12
+langchain-google-genai==1.0.9
+langchain-anthropic==0.1.16
+
+# Required dependencies
+google-ai-generativelanguage==0.6.18
+openai>=1.0.0
+anthropic>=0.28.0
+pydantic>=2.0.0

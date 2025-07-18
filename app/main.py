@@ -12,7 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import database connection
 from app.shared_kernel.database import init_database, check_database
-from app.shared_kernel.db_models import SchemaVersion  # Ensure proper initialization
+
+# Import LLM integration  
+from app.agentic_core.llm_router.llm_client import get_llm_client
+
+import logging
 
 # Import application routers
 from app.gateway.routers.health import router as health_router
@@ -45,9 +49,57 @@ async def lifespan(app: FastAPI):
         print(f"❌ Database initialization failed: {e}")
         raise
     
+    # Initialize LLM configuration for questions
+    try:
+        # Initialize LLM test
+        await _initialize_llm_test()
+    except Exception as e:
+        print(f"⚠️ LLM configuration warning: {e}")
+    
+    # Initialize question service
+    try:
+        from app.question_service.service import tech_domain_service
+        print("✅ Question service initialized")
+    except Exception as e:
+        print(f"⚠️ Question service initialization warning: {e}")
+    
+    # Yield control to FastAPI
     yield
+    
     # Shutdown
-    print("👋 TechCoach API shutting down...")
+    print("🛑 TechCoach API shutting down...")
+
+async def _initialize_llm_test():
+    """Send initial test request to verify LLM functionality."""
+    try:
+        print("🧪 Initializing LLM test...")
+        
+        # Get LLM client
+        llm_client = get_llm_client()
+        config = llm_client.get_config()
+        
+        if not config.api_key:
+            print("⚠️ No API key configured for LLM")
+            print("Please check config/llm_config.yaml or set relevant environment variables")
+            return
+            
+        # Test the client
+        print(f"🎯 Testing LLM with {config.provider}...")
+        response = llm_client.chat("Hello, please confirm you can respond.")
+        
+        if "Error:" in response:
+            print(f"❌ LLM Test Failed: {response}")
+        else:
+            print("✅ LLM Test Success!")
+            print(f"   Provider: {config.provider}")
+            print(f"   Model: {config.model}")
+            print(f"   Response: {response.strip()}")
+            
+    except Exception as e:
+        print(f"❌ LLM Test Failed: {e}")
+        print(f"   This is expected if no API keys are configured yet")
+        print(f"   Please set up config/llm_config.yaml")
+        raise e
 
 
 def create_app() -> FastAPI:
@@ -80,10 +132,13 @@ def create_app() -> FastAPI:
     app.add_middleware(ErrorHandlerMiddleware)
 
     # Include routers
+    from app.gateway.routers.question import router as question_router
+    
     app.include_router(health_router, prefix="/health", tags=["Health"])
     app.include_router(document_router, prefix="/api/documents", tags=["Documents"])
     app.include_router(interview_router, prefix="/api/interview", tags=["Interview"])
     app.include_router(career_docs_router, prefix="/api/career", tags=["Career"])
+    app.include_router(question_router, prefix="/api/questions", tags=["Questions"])
 
     # Simple root endpoint
     @app.get("/")
