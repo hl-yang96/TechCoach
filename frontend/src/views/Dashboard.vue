@@ -9,10 +9,13 @@
         <el-col :span="8">
           <el-card>
             <template #header>
-              <div>Interview Prep</div>
+              <div>面试题生成</div>
             </template>
-            <div>Generate personalized interview questions</div>
-            <el-button type="primary" @click="$router.push('/interview')" class="mt-2">Start</el-button>
+            <div>基于你的知识图谱，生成个性化面试题库</div>
+            <div class="mt-4">
+              <el-button type="primary" @click="navigateToGenerator" size="small">开始生成</el-button>
+              <el-button @click="$router.push('/interview')" size="small" plain>查看列表</el-button>
+            </div>
           </el-card>
         </el-col>
         
@@ -44,6 +47,14 @@
 <script>
 export default {
   name: 'Dashboard',
+  methods: {
+    navigateToGenerator() {
+      console.log('Navigating to interview generator...')
+      this.$router.push('/interview/generate').catch(err => {
+        console.error('Navigation error:', err)
+      })
+    }
+  }
 }
 </script>
 

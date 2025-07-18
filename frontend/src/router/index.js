@@ -31,7 +31,7 @@ const routes = [
       {
         path: 'generate',
         name: 'GenerateQuestions',
-        component: () => import('../views/interview/Generate.vue')
+        component: () => import('../views/interview/QuestionGenerator.vue')
       }
     ]
   },
