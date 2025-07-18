@@ -10,6 +10,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Import database connection
+from app.shared_kernel.database import init_database, check_database
+from app.shared_kernel.db_models import SchemaVersion  # Ensure proper initialization
+
 # Import application routers
 from app.gateway.routers.health import router as health_router
 from app.gateway.routers.document import router as document_router
@@ -25,7 +29,22 @@ from app.gateway.middleware.error_handler import ErrorHandlerMiddleware
 async def lifespan(app: FastAPI):
     """Lifespan event handlers for FastAPI."""
     # Startup
-    print("🚀 TechCoach API started successfully!")
+    print("🚀 TechCoach API starting...")
+    
+    # Initialize database
+    try:
+        print("📊 Initializing database...")
+        init_database()
+        
+        if check_database():
+            print("✅ Database initialized successfully")
+        else:
+            print("⚠️  Database connection check failed")
+            
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise
+    
     yield
     # Shutdown
     print("👋 TechCoach API shutting down...")
