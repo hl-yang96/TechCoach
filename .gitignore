@@ -17,3 +17,6 @@ yarn-error.log*
 # pycache
 __pycache__/
 *.pyc
+
+# local data
+app_data/*
