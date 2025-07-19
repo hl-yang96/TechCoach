@@ -1,33 +1,12 @@
 <template>
   <div class="question-generator-v2">
-    <!-- Sidebar Toggle Button -->
-    <button 
-      class="sidebar-toggle" 
-      @click="toggleSidebar"
-      :class="{ collapsed: sidebarCollapsed }"
-    >
-      <el-icon>
-        <ChevronLeft v-if="!sidebarCollapsed" />
-        <ChevronRight v-else />
-      </el-icon>
-    </button>
 
     <!-- Collapsible Sidebar -->
     <aside 
       class="sidebar" 
-      :class="{ collapsed: sidebarCollapsed }"
-    >
+          >
       <div class="sidebar-header">
         <h3>技术领域</h3>
-        <span class="selected-count">({{ selectedCategories.length }})</span>
-        <div class="sidebar-actions">
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click="toggleAdjustment"
-            :icon="Setting"
-            text>调整分类</el-button>
-        </div>
       </div>
 
       <div class="sidebar-content">
@@ -36,65 +15,65 @@
             v-for="category in availableCategories" 
             :key="category.id"
             class="category-slot"
-            :class="{ 
-              selected: selectedCategories.includes(category.id),
-              disabled: loading
+            :class="{
+              disabled: loading,
+              selected: currentCategory && currentCategory.id === category.id
             }"
-            @click="toggleCategory(category.id)"
+            @click="selectCategory(category.id)"
           >
-            <div class="category-item-content">
-              <div class="category-content">
-                <div class="category-name">{{ category.name }}</div>
-                <div class="category-description">{{ category.description }}</div>
-              </div>
-              <el-button
-                type="text"
-                size="small"
-                :icon="Delete"
-                circle
-                class="delete-category-btn"
-                @click.stop="deleteCategory(category.id)"
-                v-if="showDeleteButton(category)"
-              />
+            <div class="category-content">
+              <h4>{{ category.name }}</h4>
             </div>
+            <el-button
+              type="danger"
+              size="small"
+              circle
+              plain
+              @click.stop="deleteCategory(category.name)"
+              style="border-radius: 50%; padding: 8px; color: #ff4949;"
+            >
+              <el-icon><Delete /></el-icon>
+            </el-button>
           </div>
 
-          <!-- Inline Category Input -->
-          <div
-            class="add-manual category-slot"
-            :class="{ disabled: loading }"
-          >
-            <div class="category-content add-category-content">
-              <el-button
-                type="text"
-                size="small"
-                @click="addInlineCategory"
-                :disabled="!inlineCategoryName"
-                :icon="Plus"
-                circle
-              />
+          <!-- Manual Add Input -->
+          <div class="manual-add category-slot">
+            <div class="category-content">
               <el-input
-                v-model="inlineCategoryName"
-                placeholder="添加技术领域..."
+                v-model="newTechDomain"
+                placeholder="输入技术领域"
                 size="small"
-                class="inline-category-input"
-                @keyup.enter="addInlineCategory"
+                class="manual-input"
+                @keyup.enter="addTechDomain"
+                :disabled="loading"
+                clearable
                 maxlength="20"
                 show-word-limit
               />
             </div>
+            <el-button
+              type="primary"
+              size="small"
+              circle
+              plain
+              @click="addTechDomain"
+              :loading="loading"
+              :disabled="!newTechDomain.trim()"
+              style="border-radius: 50%; padding: 8px;"
+            >
+              <el-icon><Plus /></el-icon>
+            </el-button>
           </div>
 
-          <!-- Generate More Button (styled as category) -->
+          <!-- Generate More Button -->
           <div
             class="generate-more category-slot"
             :class="{ disabled: loading }"
             @click="generateMoreCategories"
           >
             <div class="category-content">
-              <div class="category-name category-name-center">智能扩展</div>
-              <div class="category-description category-description-small">基于 AI + 个人知识图谱</div>
-              <div class="category-description category-description-small">生成适合你的背景的技术领域</div>
+              <h4>🚀 智能扩展</h4>
+              <p>基于AI生成适合的技术领域</p>
             </div>
           </div>
         </div>
@@ -102,359 +81,366 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-      
-
-      <!-- Step 1: Category Selection -->
-      <div v-if="currentStep === 1" class="step-container">
-        <div class="empty-guide" v-if="selectedCategories.length === 0">
-          <el-icon size="64"><List /></el-icon>
-          <h4>请选择技术大类</h4>
-          <p>点击左侧类别进行选择，我将为您生成个性化面试题。</p>
-        </div>
-        
-        <div v-else class="selection-summary">
-          <h3>已选择 ({{ selectedCategories.length }}) 个大类</h3>
-          <div class="selected-tags">
-            <el-tag
-              v-for="categoryId in selectedCategories"
-              :key="categoryId"
-              :closable="true"
-              @close="toggleCategory(categoryId)"
-              size="small"
-            >
-              {{ getCategoryName(categoryId) }}
-            </el-tag>
+    <main class="main-content">
+      <div class="content-area">
+        <!-- 未选择技术领域时的状态 -->
+        <div v-if="!currentCategory" class="empty-state">
+          <div class="empty-content">
+            <h3>欢迎使用面试题生成器</h3>
+            <p>请从左侧选择一个技术领域开始生成面试题</p>
           </div>
         </div>
-      </div>
 
-      <!-- Step 2: Question Display -->
-      <div v-else class="questions-container">
-        <div v-if="generatedQuestions.length === 0" class="loading">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <p>正在生成面试题...</p>
-        </div>
-
-        <div v-else>
-          <div class="generation-summary">
-            <span class="summary-text">
-              <el-icon><CircleCheck /></el-icon>
-              已为{{ selectedCategories.length }}个类别生成{{ generatedQuestions.length }}道面试题
-            </span>
-            <el-button text type="primary" @click="resetAll">重新生成</el-button>
+        <!-- 已选择技术领域时的状态 -->
+        <div v-else class="questions-section">
+          <div class="section-header">
+            <h2>{{ currentCategory.name }} - 题库</h2>
           </div>
 
-          <div class="questions-grid">
-            <div 
-              v-for="(group, categoryId) in questionsByCategory" 
-              :key="categoryId"
-              class="category-section"
-            >
-              <div class="category-header">
-                <h3>{{ getCategoryName(categoryId) }}</h3>
-                <span class="count">({{ group.length }}题)</span>
-              </div>
-              
-              <el-collapse>
-                <el-collapse-item 
-                  v-for="(question, index) in group" 
-                  :key="question.id"
-                  :title="`问题 ${index + 1} - ${question.difficulty}`"
+          <!-- 加载状态 -->
+          <div v-if="questionsLoading" class="loading-state">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <p>正在加载题库...</p>
+          </div>
+
+          <!-- 无题目时显示生成按钮 -->
+          <div v-else-if="currentQuestions.length === 0" class="empty-questions">
+            <div class="empty-content">
+              <h3>{{ currentCategory.name }}</h3>
+              <p>该技术领域暂无题库，点击下方按钮开始生成面试题</p>
+              <el-button
+                type="primary"
+                size="large"
+                @click="generateQuestions"
+                :loading="generating"
+                :icon="Plus"
+                class="generate-btn"
+              >
+                {{ generating ? '正在生成题库...' : '生成题库' }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 显示题目列表 -->
+          <div v-else class="questions-list">
+            <div class="questions-header">
+              <span>共 {{ currentQuestions.length }} 道题目</span>
+              <el-button
+                type="primary"
+                size="small"
+                @click="generateQuestions"
+                :loading="generating"
+              >
+                {{ generating ? '正在生成...' : '重新生成' }}
+              </el-button>
+            </div>
+
+            <div class="questions-content">
+              <div
+                v-for="(question, index) in currentQuestions"
+                :key="question.id || index"
+                class="question-item"
+              >
+                <div class="question-number">{{ index + 1 }}</div>
+                <div class="question-text">{{ question.question_text }}</div>
+                <el-button
+                  type="danger"
+                  size="small"
+                  circle
+                  plain
+                  @click.stop="deleteQuestion(question.id)"
+                  class="delete-question-btn"
                 >
-                  <p class="question-text">{{ question.text }}</p>
-                  <div class="question-tags">
-                    <el-tag size="small" type="success">{{ getCategoryName(categoryId) }}</el-tag>
-                    <el-tag size="small" type="info">{{ question.difficulty }}</el-tag>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </div>
+            </div>
+
+            <!-- 手动添加问题 -->
+            <div class="add-question-section">
+              <div class="add-question-item">
+                <div class="question-number-placeholder"></div>
+                <el-input
+                  v-model="newQuestionText"
+                  placeholder="输入新的面试题..."
+                  size="default"
+                  class="add-question-input"
+                  @keyup.enter="addQuestion"
+                  :disabled="addingQuestion"
+                />
+                <el-button
+                  type="primary"
+                  size="small"
+                  circle
+                  plain
+                  @click="addQuestion"
+                  :loading="addingQuestion"
+                  :disabled="!newQuestionText.trim()"
+                  class="add-question-btn"
+                >
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </main>
-
-    <!-- Main Content Area Next Button -->
-    <div class="main-next-button" v-if="currentStep === 1 && selectedCategories.length > 0">
-      <el-button 
-        type="primary" 
-        @click="startGeneration"
-        :loading="loading"
-        size="large"
-        class="floating-next"
-        round
-      >
-        <span>生成面试题</span>
-        <el-icon style="margin-left: 8px"><ArrowRight /></el-icon>
-      </el-button>
-    </div>
-
-    <!-- Adjustment Popup Modal (moved from floating) -->
-    <div v-if="showAdjustment" class="adjustment-popup" @click="toggleAdjustment">
-      <div class="popup-content" @click.stop>
-        <div class="popup-header">
-          <h4>调整生成规则</h4>
-          <button @click="toggleAdjustment">×</button>
-        </div>
-        
-        <div class="suggestions">
-          <span class="suggestion-label">快速调整：</span>
-          <div class="suggestion-buttons">
-            <el-button 
-              v-for="example in promptExamples" 
-              :key="example.text"
-              size="small"
-              @click="applySuggestion(example.text)"
-            >
-              {{ example.category }}
-            </el-button>
-          </div>
-        </div>
-
-        <el-input
-          v-model="customPrompt"
-          type="textarea"
-          :rows="4"
-          placeholder="例如：增加更多云计算和大数据的相关问题，难度中等偏上..."
-          maxlength="200"
-          show-word-limit
-        />
-
-        <div class="popup-actions">
-          <el-button @click="clearCustomPrompt">清除</el-button>
-          <el-button type="primary" @click="applyCustomAdjustment">
-            应用调整
-          </el-button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
-import { ArrowLeft, ArrowRight, Setting, CircleClose, Edit, List, Loading, CircleCheck, Plus, Delete } from '@element-plus/icons-vue'
+import {
+  Setting,
+  Delete,
+  Plus,
+  Loading
+} from '@element-plus/icons-vue'
 
 export default {
   name: 'QuestionGenerator',
   components: {
-    ArrowLeft,
-    ArrowRight,
     Setting,
-    CircleClose,
-    Edit,
-    List,
-    Loading,
-    CircleCheck,
+    Delete,
     Plus,
-    Delete
+    Loading
   },
   data() {
     return {
-      // Local state instead of Pinia store
-      availableCategories: [
-        { id: 'os', name: '操作系统', selected: false },
-        { id: 'cpp', name: 'C/C++', selected: false },
-        { id: 'network', name: '计算机网络', selected: false },
-        { id: 'distributed', name: '分布式系统', selected: false },
-        { id: 'database', name: '数据库', selected: false },
-        { id: 'system_design', name: '系统设计', selected: false },
-        { id: 'algorithm', name: '算法与数据结构', selected: false },
-        { id: 'security', name: '系统安全', selected: false },
-        { id: 'ml', name: '机器学习', selected: false },
-        { id: 'frontend', name: '前端开发', selected: false },
-        { id: 'backend', name: '后端开发', selected: false },
-        { id: 'devops', name: 'DevOps', selected: false }
-      ],
-      selectedCategories: [],
-      generatedQuestions: [],
-      questionsByCategory: {},
-      currentStep: 1,
-      sidebarCollapsed: false,
+      availableCategories: [],
       loading: false,
-      showAdjustment: false,
-      customPrompt: '',
-      inlineCategoryName: '',
-      promptExamples: [
-        { category: '通用', text: '增加面试题的深度，稍微降低面试题的难度' },
-        { category: 'C++', text: '题目范围扩充至C++20新版本' },
-        { category: '操作系统', text: '增加更多Linux相关的问题' },
-        { category: '网络', text: '加入更多实际生产环境的问题' },
-        { category: '分布式', text: '与高并发场景结合，不要太空泛' }
-      ]
+      currentCategory: null,
+      newTechDomain: '',
+      currentQuestions: [],
+      questionsLoading: false,
+      generating: false,
+      newQuestionText: '',
+      addingQuestion: false
     }
   },
-  async created() {
-    console.log('QuestionGenerator created')
+    
+  async mounted() {
+    console.log('QuestionGenerator mounted')
+    await this.loadSavedTechDomains()
   },
-  mounted() {
-    console.log('QuestionGenerator mounted, categories:', this.availableCategories.length)
-  },
+    
   methods: {
-    getCategoryName(categoryId) {
-      return this.availableCategories.find(c => c.id === categoryId)?.name || categoryId
-    },
-    
-    toggleCategory(categoryId) {
-      const index = this.selectedCategories.indexOf(categoryId)
-      if (index > -1) {
-        this.selectedCategories.splice(index, 1)
-      } else {
-        this.selectedCategories.push(categoryId)
-      }
-    },
-    
-    generateMoreCategories() {
-      // Add more categories simulation
-      this.$message.success('已添加更多技术领域')
-      this.availableCategories = [...this.availableCategories]
-    },
-    
-    startGeneration() {
-      console.log('开始生成', this.selectedCategories)
-      
-      if (this.selectedCategories.length === 0) {
-        this.$message.warning('请至少选择一个大类')
-        return
-      }
-      
+    async loadSavedTechDomains() {
       this.loading = true
-      
-      // Simulate API call
-      setTimeout(() => {
+      try {
+        const response = await this.$axios.get('/api/questions/tech-domains')
+        this.availableCategories = response.data.domains.map(domain => ({
+          id: domain.name, // 使用 name 作为 id，因为 name 是主键
+          name: domain.name,
+        }))
+      } catch (error) {
+        console.error('Failed to load tech domains:', error)
+        this.$message.error('加载技术领域失败，请稍后重试')
+      } finally {
         this.loading = false
-        this.generateQuestions()
-        this.currentStep = 2
-        this.sidebarCollapsed = true
-        this.$message.success(`已为 ${this.selectedCategories.length} 个类别生成面试题`)
-      }, 1000)
-    },
-    
-    generateQuestions() {
-      this.generatedQuestions = []
-      this.questionsByCategory = {}
-      
-      this.selectedCategories.forEach(categoryId => {
-        const categoryName = this.getCategoryName(categoryId)
-        const questions = [
-          {
-            id: `q-${categoryId}-1`,
-            text: `${categoryName}核心概念：请解释${categoryName}的基本原理和主要特点`,
-            difficulty: '基础'
-          },
-          {
-            id: `q-${categoryId}-2`,
-            text: `${categoryName}实践挑战：在实际项目中遇到过哪些${categoryName}相关的难题？如何解决？`,
-            difficulty: '中级'
-          },
-          {
-            id: `q-${categoryId}-3`,
-            text: `${categoryName}高级应用：如何优化${categoryName}在复杂场景下的性能？请提供具体方案`,
-            difficulty: '高级'
-          }
-        ]
-        
-        this.questionsByCategory[categoryId] = questions
-        this.generatedQuestions = [...this.generatedQuestions, ...questions]
-      })
-    },
-    
-    resetAll() {
-      this.selectedCategories = []
-      this.generatedQuestions = []
-      this.questionsByCategory = {}
-      this.currentStep = 1
-      this.$message.success('已重置选择')
-    },
-    
-    toggleSidebar() {
-      this.sidebarCollapsed = !this.sidebarCollapsed
-    },
-    
-    toggleAdjustment() {
-      this.showAdjustment = !this.showAdjustment
-    },
-    
-    applySuggestion(text) {
-      this.customPrompt = text
-    },
-    
-    applyCustomAdjustment() {
-      this.generateQuestions()
-      this.showAdjustment = false
-      this.$message.success('已应用调整')
-    },
-    
-    clearCustomPrompt() {
-      this.customPrompt = ''
-      this.showAdjustment = false
-    },
-    
-    deleteCategory(categoryId) {
-      // Don't allow deletion of built-in categories
-      const protectedCategories = ['os', 'cpp', 'network', 'distributed', 'database', 'system_design', 'algorithm', 'security', 'ml', 'frontend', 'backend', 'devops']
-      if (protectedCategories.includes(categoryId)) {
-        this.$message.warning('系统内置领域不能删除')
-        return
       }
-      
-      // Remove from selected if currently selected
-      const selectedIndex = this.selectedCategories.indexOf(categoryId)
-      if (selectedIndex > -1) {
-        this.selectedCategories.splice(selectedIndex, 1)
+    },
+    async generateMoreCategories() {
+      this.loading = true
+      try {
+        const response = await this.$axios.post('/api/questions/tech-domains/generate', {})
+
+        const newDomains = response.data.domains
+
+        if (!Array.isArray(newDomains) || newDomains.length === 0) {
+          this.$message.info('暂时没有更多新的技术领域推荐')
+        } else {
+          const existingNames = this.availableCategories.map(c => c.name)
+          const newCategories = newDomains.filter(domain =>
+            !existingNames.includes(domain.name)
+          ).map(domain => ({
+            id: domain.name, // 使用 name 作为 id，因为 name 是主键
+            name: domain.name,
+          }))
+
+          this.availableCategories = [...this.availableCategories, ...newCategories]
+          this.$message.success(`已添加 ${newCategories.length} 个新的技术领域`)
+        }
+
+      } catch (error) {
+        console.error('Failed to generate domains:', error)
+        this.$message.error('获取技术领域失败，请稍后重试')
+      } finally {
+        this.loading = false
       }
-      
-      // Remove from available categories
-      this.availableCategories = this.availableCategories.filter(c => c.id !== categoryId)
-      this.$message.success('技术领域已删除')
     },
     
-    showDeleteButton(category) {
-      // Only show delete button for custom categories
-      const protectedCategories = ['os', 'cpp', 'network', 'distributed', 'database', 'system_design', 'algorithm', 'security', 'ml', 'frontend', 'backend', 'devops']
-      return !protectedCategories.includes(category.id)
+    async selectCategory(categoryId) {
+      const category = this.availableCategories.find(c => c.id === categoryId)
+      if (!category) return
+
+      this.currentCategory = category
+      this.newQuestionText = '' // 清空输入框
+      this.$message.success(`已选择技术领域：${category.name}`)
+
+      // 查询当前领域的所有问题
+      await this.fetchQuestions(categoryId)
     },
-    
-    addInlineCategory() {
-      if (!this.inlineCategoryName.trim()) return
-      
-      const name = this.inlineCategoryName.trim()
-      const newId = name.toLowerCase().replace(/\s+/g, '_')
-      
-      // Check for duplicates
-      const existing = this.availableCategories.find(c => c.id === newId)
-      if (existing) {
-        this.$message.warning('该技术领域已存在')
-        return
-      }
-      
-      this.availableCategories.push({
-        id: newId,
-        name: name,
-        selected: false
-      })
-      
-      this.inlineCategoryName = ''
-      this.$message.success(`已添加技术领域：${name}`)
-    },
-    
-    showAddCategoryDialog() {
-      this.$prompt('请输入技术领域名称', '添加自定义领域', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /^[\u4e00-\u9fa5\w\s-]+$/,
-        inputErrorMessage: '请输入有效的技术领域名称'
-      }).then(({ value }) => {
-        const newId = value.toLowerCase().replace(/\s+/g, '_')
-        this.availableCategories.push({
-          id: newId,
-          name: value,
-          selected: false
+
+    async fetchQuestions(categoryId) {
+      this.questionsLoading = true
+      this.currentQuestions = []
+
+      try {
+        const response = await this.$axios.post('/api/questions/tech-domains/questions/get_all', {
+          domain_name: categoryId
         })
-        this.$message.success(`已添加技术领域：${value}`)
-      }).catch(() => {
-        // cancelled
-      })
+        this.currentQuestions = response.data.questions || []
+      } catch (error) {
+        console.error('Failed to fetch questions:', error)
+        this.$message.error('获取题库失败，请稍后重试')
+        this.currentQuestions = []
+      } finally {
+        this.questionsLoading = false
+      }
+    },
+
+    async generateQuestions() {
+      if (!this.currentCategory) return
+
+      this.generating = true
+      try {
+        const response = await this.$axios.post('/api/questions/tech-domains/questions/generate', {
+          domain_name: this.currentCategory.id
+        })
+        this.currentQuestions = response.data.questions || []
+        if (this.currentQuestions.length === 0) {
+          this.$message.info('暂时无法生成题库')
+        } else {
+          this.$message.success(`已生成 ${this.currentQuestions.length} 道题目`)
+        }
+      } catch (error) {
+        console.error('Failed to generate questions:', error)
+        this.$message.error('生成题库失败，请稍后重试')
+      } finally {
+        this.generating = false
+      }
+    },
+
+    async deleteQuestion(questionId) {
+      if (!questionId) {
+        this.$message.error('无效的问题ID')
+        return
+      }
+
+      try {
+        await this.$axios.post('/api/questions/tech-domains/questions/delete', {
+          question_id: questionId
+        })
+
+        // 从当前问题列表中移除
+        this.currentQuestions = this.currentQuestions.filter(q => q.id !== questionId)
+        this.$message.success('问题删除成功')
+      } catch (error) {
+        console.error('Failed to delete question:', error)
+        this.$message.error('删除问题失败，请稍后重试')
+      }
+    },
+
+    async addQuestion() {
+      if (!this.newQuestionText.trim() || !this.currentCategory) {
+        return
+      }
+
+      this.addingQuestion = true
+      try {
+        const response = await this.$axios.post('/api/questions/tech-domains/questions/manual', {
+          domain_name: this.currentCategory.id,
+          question_text: this.newQuestionText.trim()
+        })
+
+        // 添加到当前问题列表
+        const newQuestion = {
+          id: response.data.id,
+          domain_name: response.data.domain_name,
+          question_text: response.data.question_text,
+          user_answer: null,
+          generated_answer: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+
+        this.currentQuestions.push(newQuestion)
+        this.newQuestionText = ''
+        this.$message.success('问题添加成功')
+      } catch (error) {
+        console.error('Failed to add question:', error)
+        this.$message.error('添加问题失败，请稍后重试')
+      } finally {
+        this.addingQuestion = false
+      }
+    },
+    
+    async deleteCategory(categoryId) {
+      const category = this.availableCategories.find(c => c.id === categoryId)
+      if (!category) {
+        this.$message.info('系统领域不可删除')
+        return
+      }
+
+      try {
+        // 使用 POST 请求删除，避免 URL 路径中特殊字符（如 "/"）的问题
+        await this.$axios.post('/api/questions/tech-domains/delete', {
+          name: categoryId
+        })
+        this.availableCategories = this.availableCategories.filter(c => c.id !== categoryId)
+
+        // 如果删除的是当前正在查看的类别，清空当前类别和问题
+        if (this.currentCategory && this.currentCategory.id === categoryId) {
+          this.currentCategory = null
+          this.currentQuestions = []
+          this.newQuestionText = '' // 清空输入框
+        }
+
+        this.$message.success(`已删除技术领域：${category.name}`)
+      } catch (error) {
+        console.error('Delete failed:', error)
+        this.$message.error('删除失败，请稍后重试')
+      }
+    },
+    
+    async addTechDomain() {
+      if (!this.newTechDomain.trim()) return
+
+      this.loading = true
+      try {
+        const response = await this.$axios.post('/api/questions/tech-domains/manual', {
+          name: this.newTechDomain.trim()
+        })
+
+        const existingNames = this.availableCategories.map(c => c.name)
+        if (!existingNames.includes(response.data.name)) {
+          this.availableCategories.push({
+            id: response.data.name, // 使用 name 作为 id，因为 name 是主键
+            name: response.data.name,
+          })
+          this.$message.success(`已成功添加技术领域：${response.data.name}`)
+        } else {
+          this.$message.info('该技术领域已存在')
+        }
+
+        this.newTechDomain = ''
+      } catch (error) {
+        console.error('Failed to add tech domain:', error)
+        if (error.response && error.response.status === 409) {
+          this.$message.warning('该技术领域已存在')
+        } else {
+          this.$message.error('添加技术领域失败，请稍后重试')
+        }
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    
+    getCategoryName(categoryName) {
+      const category = this.availableCategories.find(c => c.name === categoryName)
+      return category ? category.name : categoryName
     }
   }
 }
@@ -464,102 +450,117 @@ export default {
 .question-generator-v2 {
   min-height: 100vh;
   display: flex;
+  background: #f5f5f5;
   position: relative;
-  background: #fafafa;
-}
-
-.sidebar-toggle {
-  position: absolute;
-  top: 20px;
-  left: 280px;
-  z-index: 10;
-  background: #2c3e50;
-  color: white;
-  border: none;
-  border-radius: 0 8px 8px 0;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.sidebar-toggle.collapsed {
-  left: 12px;
 }
 
 .sidebar {
   width: 280px;
   background: white;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.1);
-  transition: transform 0.3s ease;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  height: 100vh;
   overflow-y: auto;
-}
-
-.sidebar.collapsed {
-  transform: translateX(-100%);
 }
 
 .sidebar-header {
   padding: 20px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid #ebeef5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-.sidebar-actions {
-  display: flex;
   gap: 8px;
-  margin-top: 12px;
-}
-.sidebar-actions .el-button {
-  font-size: 14px;
-  padding: 8px 12px;
 }
 
 .sidebar-header h3 {
   margin: 0;
-  font-size: 18px;
   color: #2c3e50;
 }
 
-.selected-count {
-  color: #7f8c8d;
+.admin-count {
+  color: #666;
   font-size: 14px;
 }
 
 .sidebar-content {
+  padding: 16px;
+}
+
+.manual-add-section {
   display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.manual-add-section:hover {
+  border-color: #409eff;
 }
 
 .categories-list {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .category-slot {
   padding: 12px;
-  border: 2px solid #e4e7ed;
+  border: 1px solid #ebeef5;
   border-radius: 8px;
-  margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .category-slot:hover {
   border-color: #409eff;
 }
 
+.category-slot .el-button {
+  flex-shrink: 0;
+  margin-left: 8px;
+  margin-top: -4px;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.category-slot:hover .el-button {
+  opacity: 1;
+}
+
 .category-slot.selected {
-  border-color: #67c23a;
-  background-color: #f0f9ff;
+  background-color: #409eff;
+  border-color: #409eff;
+  color: white;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.category-slot.selected h4 {
+  color: white;
+}
+
+.category-slot.selected:hover {
+  background-color: #337ecc;
+  border-color: #337ecc;
+}
+
+.category-content h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  padding-right: 24px;
+  line-height: 1.4;
 }
 
 .generate-more {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border: 2px solid #667eea;
+  border: none;
 }
 
 .generate-more:hover {
@@ -567,381 +568,311 @@ export default {
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
-.category-content h4 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  font-weight: 600;
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  padding: 40px;
 }
 
-.category-content p {
-  margin: 0;
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.4;
-}
-
-.sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid #e4e7ed;
-}
-
-.add-category-content {
+.empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #606266;
-  width: 100%;
+  justify-content: center;
+  height: 400px;
 }
 
-.add-category-text {
-  margin: 0;
+.empty-content {
+  text-align: center;
+  color: #606266;
+}
+
+.empty-content h3 {
+  margin: 0 0 16px 0;
+  color: #303133;
+  font-size: 20px;
   font-weight: 500;
 }
 
-.add-manual {
-  border-color: #409eff;
-  background-color: #f0f9ff;
-}
-
-.add-manual:hover {
-  border-color: #409eff;
-  background-color: #e6f2ff;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
-}
-
-.inline-category-input {
-  width: 100%;
-  border: none;
-  background: transparent;
-}
-
-.inline-category-input :deep(.el-input__wrapper) {
-  box-shadow: none;
-  background: transparent;
-  padding: 0;
-}
-
-.inline-category-input :deep(.el-input__inner) {
-  padding: 0 8px;
-}
-
-.category-name-center {
-  text-align: center;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.category-description-small {
-  font-size: 12px;
-  line-height: 1.3;
-}
-
-.category-item-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.delete-category-btn {
-  color: #f56c6c;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  margin-left: 8px;
-  opacity: 0.7;
-  transition: all 0.2s;
-}
-
-.delete-category-btn:hover {
-  opacity: 1;
-  transform: scale(1.1);
-  color: #ff4d4f;
-}
-
-.category-slot:hover .delete-category-btn {
-  opacity: 1;
-}
-
-.main-content {
-  flex: 1;
-  transition: margin-left 0.3s ease;
-  margin-left: 280px;
-  padding: 20px;
-}
-
-.main-content.sidebar-collapsed {
-  margin-left: 0;
-}
-
-.main-header {
-  padding: 40px 20px;
-  text-align: center;
-}
-
-.main-header h1 {
-  font-size: 32px;
-  color: #2c3e50;
-  margin-bottom: 10px;
-}
-
-.description {
-  font-size: 16px;
-  color: #7f8c8d;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.step-container,
-.questions-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.empty-guide {
-  text-align: center;
-  padding: 100px 20px;
-}
-
-.empty-guide h4 {
-  margin: 20px 0 10px 0;
-  color: #2c3e50;
-}
-
-.empty-guide p {
-  color: #7f8c8d;
-  margin-bottom: 20px;
-}
-
-.selection-summary {
-  text-align: center;
-  padding: 40px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-.selected-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.loading {
-  text-align: center;
-  padding: 100px 20px;
-}
-
-.loading .el-icon {
-  margin-bottom: 20px;
-}
-
-.generation-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-.summary-text {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #67c23a;
-  font-weight: 600;
-}
-
-.questions-grid {
-  display: grid;
-  gap: 30px;
-}
-
-.category-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-}
-
-.category-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.category-header h3 {
-  margin: 0;
-  color: #2c3e50;
-}
-
-.count {
-  color: #7f8c8d;
-  font-size: 14px;
-}
-
-.question-item {
-  margin-bottom: 12px;
-}
-
-.question-text {
+.empty-content p {
+  margin: 0 0 24px 0;
+  color: #909399;
   font-size: 14px;
   line-height: 1.6;
-  color: #333;
-  margin-bottom: 8px;
 }
 
-.question-tags {
+.generate-btn {
+  padding: 12px 32px !important;
+  font-size: 16px !important;
+  border-radius: 8px !important;
+}
+
+.selected-categories h3 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.category-tags {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.main-next-button {
-  position: fixed;
-  bottom: 40px;
-  right: 40px;
-  z-index: 1000;
+
+
+
+
+/* 手动添加技术领域的样式 */
+.manual-add {
+  background-color: #f8f9fa;
+  border: 2px dashed #d1d5db;
+  color: #6b7280;
 }
 
-.floating-next {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #409eff;
+.manual-add:hover {
+  border-color: #9ca3af;
+  background-color: #f3f4f6;
+}
+
+.manual-add .category-content {
+  flex: 1;
+  padding-right: 8px;
+}
+
+.manual-add .manual-input {
+  width: 100%;
+}
+
+.manual-add .manual-input .el-input__inner {
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.manual-add .manual-input .el-input__inner::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.manual-add .manual-input .el-input__inner:focus {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* 手动添加按钮样式 */
+.manual-add .el-button {
+  min-width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.manual-add .el-button:not(.is-disabled) {
+  color: #409eff;
+  border-color: #409eff;
+}
+
+.manual-add .el-button:not(.is-disabled):hover {
+  background-color: #409eff;
   color: white;
-  padding: 16px 32px;
-  border-radius: 50px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: all 0.3s;
+  transform: scale(1.05);
+}
+
+.manual-add .el-button.is-disabled {
+  color: #c0c4cc;
+  border-color: #e4e7ed;
+  cursor: not-allowed;
+}
+
+/* 删除按钮样式优化 */
+.category-slot .el-button--danger {
+  min-width: 32px;
+  height: 32px;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.category-slot .el-button--danger:hover {
+  opacity: 1;
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: white;
+  transform: scale(1.05);
+}
+
+.category-slot .el-button--danger .el-icon {
   font-size: 14px;
 }
 
-.floating-next:hover {
-  transform: translateY(-2px);
-  background: #66b1ff;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+/* 问题相关样式 */
+.questions-section {
+  padding: 20px;
 }
 
-.adjustment-popup {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1001;
+.section-header h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 24px;
 }
 
-.popup-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(2px);
-}
-
-.popup-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.popup-header {
+.loading-state {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #606266;
+}
+
+.loading-state .el-icon {
+  font-size: 32px;
   margin-bottom: 16px;
 }
 
-.popup-header h4 {
-  margin: 0;
-  color: #2c3e50;
+.empty-questions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 
-.popup-header button {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #999;
+.questions-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.suggestions {
-  margin-bottom: 20px;
+.questions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebeef5;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
 }
 
-.suggestion-label {
+.questions-header span {
+  color: #606266;
+  font-weight: 500;
+}
+
+.questions-content {
+  padding: 0;
+}
+
+.question-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.3s;
+  position: relative;
+}
+
+.question-item:last-child {
+  border-bottom: none;
+}
+
+.question-item:hover {
+  background-color: #f8f9fa;
+}
+
+.question-item:hover .delete-question-btn {
+  opacity: 1;
+}
+
+.question-number {
+  background: #409eff;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.question-text {
+  color: #303133;
+  line-height: 1.6;
   font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-right: 8px;
+  flex: 1;
 }
 
-.suggestion-buttons {
+/* 删除问题按钮 */
+.delete-question-btn {
+  margin-left: 12px;
+  opacity: 0;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.delete-question-btn:hover {
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* 添加问题区域 */
+.add-question-section {
+  border-top: 1px solid #ebeef5;
+  background-color: #fafafa;
+}
+
+.add-question-item {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 16px;
 }
 
-.popup-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
+.question-number-placeholder {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  /* 透明占位符，保持与上面题目的对齐 */
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    width: 100%;
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    z-index: 100;
-  }
-  
-  .main-content {
-    margin-left: 0;
-    padding: 10px;
-  }
-  
-  .sidebar-toggle {
-    left: 10px;
-    top: 60px;
-  }
-  
-  .adjustment-float-container {
-    bottom: 20px;
-    right: 20px;
-  }
-  
-  .adjustment-trigger {
-    padding: 12px 20px;
-    font-size: 13px;
-  }
-  
-  .popup-content {
-    width: 95%;
-    margin: 10px;
-    max-height: 90vh;
-  }
+.add-question-input {
+  flex: 1;
+}
+
+.add-question-input .el-input__inner {
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.add-question-input .el-input__inner:focus {
+  border-color: #409eff;
+}
+
+.add-question-btn {
+  flex-shrink: 0;
+}
+
+.add-question-btn:not(.is-disabled) {
+  color: #67c23a;
+  border-color: #67c23a;
+}
+
+.add-question-btn:not(.is-disabled):hover {
+  background-color: #67c23a;
+  color: white;
+  transform: scale(1.05);
+}
+
+.add-question-btn.is-disabled {
+  color: #c0c4cc;
+  border-color: #e4e7ed;
+  cursor: not-allowed;
 }
 </style>

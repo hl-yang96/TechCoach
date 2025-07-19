@@ -2,7 +2,7 @@
 # Simple single-provider configuration using LangChain
 
 # Choose one provider: kimi, openai, claude, gemini, deepseek
-provider: "kimi"
+provider: "deepseek"
 
 # Provider-specific configuration
 providers:

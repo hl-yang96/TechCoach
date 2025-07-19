@@ -9,7 +9,6 @@ This module provides reusable components to avoid code duplication and ensure co
 __module_name__ = "shared_kernel"
 __description__ = "Shared utilities, models, and constants across modules"
 
-from .models import *
 from .constants import *
 from .exceptions import *
 from .validators import *

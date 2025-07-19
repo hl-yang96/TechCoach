@@ -9,6 +9,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import axios from 'axios'
 
 import App from './App.vue'
 import router from './router'
@@ -26,5 +27,9 @@ app.config.errorHandler = (err, instance, info) => {
   console.error('Global error:', err)
   console.error('Error info:', info)
 }
+
+// Configure axios for API calls
+app.config.globalProperties.$axios = axios
+axios.defaults.baseURL = 'http://localhost:8001'
 
 app.mount('#app')
