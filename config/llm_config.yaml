@@ -13,7 +13,7 @@ providers:
     
   openai:
     api_key: null  # Set your OpenAI API key here or use OPENAI_API_KEY env var
-    model: "gpt-4o"
+    model: "gpt-4o-mini"
     api_base: "https://api.openai.com/v1"
     
   claude:

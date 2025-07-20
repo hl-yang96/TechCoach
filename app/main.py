@@ -20,7 +20,7 @@ import logging
 
 # Import application routers
 from app.gateway.routers.health import router as health_router
-from app.gateway.routers.document import router as document_router
+from app.gateway.routers.documents import router as document_router
 from app.gateway.routers.interview import router as interview_router
 from app.gateway.routers.career_docs import router as career_docs_router
 

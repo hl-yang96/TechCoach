@@ -61,13 +61,21 @@ class AgenticCoreManager:
     
     async def _init_vector_db(self) -> None:
         """Initialize ChromaDB vector database connection."""
-        # TODO: Implement ChromaDB initialization
-        pass
-    
+        from .rag.chroma_client import ChromaDBClient
+
+        self.chroma_client = ChromaDBClient()
+        if not self.chroma_client.connect():
+            raise RuntimeError("Failed to connect to ChromaDB")
+        logger.info("ChromaDB connection established")
+
     async def _init_rag_system(self) -> None:
-        """Initialize LlamaIndex RAG system."""
-        # TODO: Implement RAG pipeline setup
-        pass
+        """Initialize document store for CrewAI agents."""
+        from .rag.document_store import DocumentStore
+
+        self.document_store = DocumentStore()
+        if not await self.document_store.initialize():
+            raise RuntimeError("Failed to initialize document store")
+        logger.info("Document store initialized for CrewAI agents")
     
     async def _init_llm_router(self) -> None:
         """Initialize LLM routing system."""

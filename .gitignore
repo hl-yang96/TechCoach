@@ -20,3 +20,4 @@ __pycache__/
 
 # local data
 app_data/*
+.env

@@ -1,0 +1,25 @@
+# --- LLM / RAG Frameworks (易冲突部分) ---
+
+# Vector Database
+chromadb>=0.4.22
+
+pydantic==2.9.2
+
+# RAG Framework - LlamaIndex
+llama-index==0.12.12
+llama-index-vector-stores-chroma==0.4.0
+llama-index-embeddings-google-genai==0.2.0
+# llama-index-embeddings-openai==0.2.5
+# llama-index-llms-openai
+
+# AI/LLM Integrations
+langchain==0.3.7
+langchain-core==0.3.19
+langchain-openai==0.2.7
+langchain-google-genai==2.0.4
+langchain-anthropic==0.2.4
+
+# OpenAI and API clients
+openai==1.89.0
+anthropic==0.54.0
+google-generativeai==0.8.4
