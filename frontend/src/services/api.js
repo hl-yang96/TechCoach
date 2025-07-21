@@ -41,6 +41,21 @@ export const healthService = {
 }
 
 export const documentService = {
+  // Ingest documents from file path or text content
+  ingestDocument: (data) => {
+    return api.post('/api/documents/ingest', data)
+  },
+
+  // Get list of uploaded documents
+  getDocumentList: () => api.get('/api/documents/list'),
+
+  // Get document collections
+  getCollections: () => api.get('/api/documents/collections'),
+
+  // Health check
+  getHealth: () => api.get('/api/documents/health'),
+
+  // Legacy upload method (keeping for compatibility)
   uploadDocument: (file, metadata) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -51,24 +66,4 @@ export const documentService = {
   },
   getDocuments: () => api.get('/api/documents'),
   deleteDocument: (id) => api.delete(`/api/documents/${id}`)
-}
-
-export const interviewService = {
-  getSessions: () => api.get('/api/interview/sessions'),
-  createSession: (sessionData) => api.post('/api/interview/sessions', sessionData),
-  getSession: (id) => api.get(`/api/interview/sessions/${id}`),
-  generateQuestions: (config) => api.post('/api/interview/generate-questions', config),
-  submitAnswers: (sessionId, answers) => api.post(`/api/interview/${sessionId}/submit`, answers)
-}
-
-export const careerService = {
-  uploadResume: (file) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/api/career/upload-resume', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-  },
-  analyzeResume: (resumeId) => api.post(`/api/career/analyze/${resumeId}`),
-  optimizeResume: (resumeId) => api.post(`/api/career/optimize/${resumeId}`)
 }

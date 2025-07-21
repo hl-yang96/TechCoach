@@ -206,8 +206,9 @@ DOCUMENT_CLASSIFICATION_PROMPT = """
 2. metadata: 相关元数据字典(每个字段限制30字符以内,简单K-V,V只能是字符串或者数字)
 3. confidence: 分类置信度 (0-1)
 4. reasoning: 分类理由(限制50字符以内)
+5. generated_filename: 如果文件名为空或"未知"，请根据文档内容生成一个有意义的文件名(5-15个中文字符，不包含特殊字符)
 
-示例输出：
+示例输出（有文件名时）：
 {{
     "collection_type": "resumes",
     "metadata": {{
@@ -217,6 +218,19 @@ DOCUMENT_CLASSIFICATION_PROMPT = """
     }},
     "confidence": 0.95,
     "reasoning": "简历内容"
+}}
+
+示例输出（无文件名时）：
+{{
+    "collection_type": "projects_experience",
+    "metadata": {{
+        "project_name": "电商系统",
+        "document_type": "项目描述",
+        "is_technical": true
+    }},
+    "confidence": 0.90,
+    "reasoning": "项目经验描述",
+    "generated_filename": "电商系统项目经验"
 }}
 不要输出处理json外的任何其他的文字或者格式符号等。
 """

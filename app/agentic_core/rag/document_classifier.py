@@ -171,34 +171,46 @@ class DocumentClassifier:
             logger.error(f"Error in metadata enhancement: {e}")
             return current_metadata
     
-    def get_collection_and_metadata(self, 
-                                  document_content: str, 
-                                  filename: str = "") -> Tuple[str, Dict[str, Any]]:
+    def get_collection_and_metadata(self,
+                                  document_content: str,
+                                  filename: str = "") -> Tuple[str, Dict[str, Any], str]:
         """
-        Get both collection type and enhanced metadata for a document.
-        
+        Get both collection type, enhanced metadata, and generated filename for a document.
+
         Args:
             document_content: The content of the document
             filename: Optional filename for additional context
-            
+
         Returns:
-            Tuple of (collection_type, metadata)
+            Tuple of (collection_type, metadata, final_filename)
         """
         # First classify the document
-        classification = self.classify_document(document_content, filename)
+        classification = self.classify_document(document_content, filename or "未知")
         collection_type = classification.get("collection_type", CollectionType.PROJECTS_EXPERIENCE)
         base_metadata = classification.get("metadata", {})
-        
+
+        # Handle generated filename
+        final_filename = filename
+        if not filename or filename == "未知":
+            generated_filename = classification.get("generated_filename")
+            if generated_filename:
+                final_filename = generated_filename
+            else:
+                # Fallback to timestamp-based filename
+                from datetime import datetime
+                final_filename = f"文档_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
         # Add classification confidence and reasoning
         base_metadata["classification_confidence"] = classification.get("confidence", 0.5)
         base_metadata["classification_reasoning"] = classification.get("reasoning", "")
-        
+        base_metadata["final_filename"] = final_filename
+
         # Enhance the metadata
         enhanced_metadata = self.enhance_metadata(collection_type, document_content, base_metadata)
 
         # TODO: the auto-generated tag sometime is too many, need to deal with it
-        
-        return collection_type, enhanced_metadata
+
+        return collection_type, enhanced_metadata, final_filename
     
     def _validate_classification_result(self, result: Dict[str, Any]) -> bool:
         """

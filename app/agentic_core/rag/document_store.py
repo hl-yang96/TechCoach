@@ -166,9 +166,12 @@ class DocumentStore:
 
             # Classify document if collection_type not specified
             if collection_type is None:
-                collection_type, enhanced_metadata = self.document_classifier.get_collection_and_metadata(
+                collection_type, enhanced_metadata, final_filename = self.document_classifier.get_collection_and_metadata(
                     content, filename
                 )
+                # Update filename if it was generated
+                if not filename or filename == "未知":
+                    document.metadata["file_name"] = final_filename
             else:
                 # Use provided collection type and enhance metadata
                 base_metadata = getattr(document, 'metadata', {})

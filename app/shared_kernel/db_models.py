@@ -36,3 +36,32 @@ class TechDomainQuestionEntity():
         self.generated_answer = generated_answer
         self.created_at = created_at
         self.updated_at = updated_at
+
+
+class DocumentEntity():
+    """Document Entity for uploaded documents"""
+    def __init__(
+        self,
+        id: str,
+        filename: str,
+        file_path: str,
+        collection_type: str,
+        chroma_document_id: Optional[str] = None,
+        is_local_file: bool = True,
+        file_size: Optional[int] = None,
+        content_preview: Optional[str] = None,
+        upload_method: str = "file",  # "file" or "text"
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None
+    ):
+        self.id = id
+        self.filename = filename
+        self.file_path = file_path
+        self.collection_type = collection_type
+        self.chroma_document_id = chroma_document_id
+        self.is_local_file = is_local_file
+        self.file_size = file_size
+        self.content_preview = content_preview
+        self.upload_method = upload_method
+        self.created_at = created_at
+        self.updated_at = updated_at

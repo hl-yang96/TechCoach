@@ -5,12 +5,18 @@ Purpose: API endpoints for document storage and retrieval (for CrewAI agents)
 """
 
 import logging
+import uuid
+from datetime import datetime
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
+from llama_index.core import Document
 
 from app.agentic_core.rag.document_store import DocumentStore
 from app.agentic_core.rag.chroma_client import ChromaDBClient
+from app.agentic_core.llm_router.llm_client import get_llm_client
+from app.shared_kernel.database_service import DocumentDBService
+from app.shared_kernel.db_models import DocumentEntity
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,7 +44,9 @@ class ContextRequest(BaseModel):
     max_tokens: int = 2000
 
 class IngestDocumentsRequest(BaseModel):
-    documents_path: str
+    documents_path: Optional[str] = None
+    content: Optional[str] = None
+    filename: Optional[str] = None
     collection_type: Optional[str] = None
 
 
@@ -72,6 +80,13 @@ class HealthResponse(BaseModel):
     store_initialized: bool
     ready_for_agents: bool
     message: str
+
+
+class DocumentListResponse(BaseModel):
+    documents: List[Dict[str, Any]]
+    total_documents: int
+    collections: List[str]
+    success: bool
 
 
 async def get_document_store() -> DocumentStore:
@@ -201,37 +216,155 @@ async def get_context_for_agents(request: ContextRequest):
 
 @router.post("/ingest")
 async def ingest_documents(request: IngestDocumentsRequest):
-    """Ingest documents with automatic classification or into specified collection."""
+    """Ingest documents from file path or text content with automatic classification."""
     try:
         store = await get_document_store()
 
-        # Ingest documents
-        success = store.ingest_documents(
-            documents_path=request.documents_path,
-            collection_type=request.collection_type
-        )
-
-        if not success:
+        # Validate input - either documents_path or content must be provided
+        if not request.documents_path and not request.content:
             raise HTTPException(
-                status_code=500,
-                detail=f"Failed to ingest documents from {request.documents_path}"
+                status_code=400,
+                detail="Either documents_path or content must be provided"
             )
 
-        classification_mode = "automatic LLM classification" if request.collection_type is None else f"specified collection: {request.collection_type}"
+        if request.documents_path and request.content:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide either documents_path or content, not both"
+            )
 
-        return {
-            "message": f"Successfully ingested documents using {classification_mode}",
-            "documents_path": request.documents_path,
-            "collection_type": request.collection_type,
-            "classification_mode": classification_mode,
-            "success": True
-        }
+        # Handle file path ingestion
+        if request.documents_path:
+            success = store.ingest_documents(
+                documents_path=request.documents_path,
+                collection_type=request.collection_type
+            )
+
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to ingest documents from {request.documents_path}"
+                )
+
+            classification_mode = "automatic LLM classification" if request.collection_type is None else f"specified collection: {request.collection_type}"
+
+            return {
+                "message": f"Successfully ingested documents from path using {classification_mode}",
+                "documents_path": request.documents_path,
+                "collection_type": request.collection_type,
+                "classification_mode": classification_mode,
+                "success": True
+            }
+
+        # Handle text content ingestion
+        else:
+            # Create document ID
+            document_id = str(uuid.uuid4())
+
+            # Create LlamaIndex Document object
+            document = Document(
+                text=request.content,
+                metadata={
+                    "file_name": request.filename or "未知",
+                    "document_id": document_id,
+                    "upload_timestamp": datetime.now().isoformat(),
+                    "upload_method": "text_content"
+                }
+            )
+
+            # Ingest the document
+            success = store._ingest_single_document(document, request.collection_type)
+
+            if not success:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to ingest text content"
+                )
+
+            classification_mode = "automatic LLM classification" if request.collection_type is None else f"specified collection: {request.collection_type}"
+
+            # Get the final filename and collection type (might be generated by LLM)
+            final_filename = document.metadata.get("file_name", request.filename or "未知文档")
+            final_collection_type = document.metadata.get("collection_type", request.collection_type or "unknown")
+
+            # Save document info to SQLite database
+            try:
+                doc_db_service = DocumentDBService()
+
+                # Create content preview (first 200 characters)
+                content_preview = request.content[:200] + "..." if len(request.content) > 200 else request.content
+
+                document_entity = DocumentEntity(
+                    id=document_id,
+                    filename=final_filename,
+                    file_path=final_filename,  # For text content, use filename as path
+                    collection_type=final_collection_type,
+                    chroma_document_id=document_id,  # Use same ID for ChromaDB reference
+                    is_local_file=False,  # Text content is not a local file
+                    file_size=len(request.content.encode('utf-8')),  # Size in bytes
+                    content_preview=content_preview,
+                    upload_method="text_content"
+                )
+
+                doc_db_service.create_document(document_entity)
+                logger.info(f"Saved document to database: {document_id}")
+
+            except Exception as db_error:
+                logger.warning(f"Failed to save document to database: {db_error}")
+                # Don't fail the entire operation if database save fails
+
+            return {
+                "message": f"Successfully ingested text content using {classification_mode}",
+                "document_id": document_id,
+                "filename": final_filename,
+                "collection_type": final_collection_type,
+                "classification_mode": classification_mode,
+                "success": True
+            }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
         raise HTTPException(status_code=500, detail=f"Document ingestion failed: {str(e)}")
+
+
+@router.get("/list", response_model=DocumentListResponse)
+async def get_uploaded_documents():
+    """Get list of all uploaded documents."""
+    try:
+        doc_db_service = DocumentDBService()
+        documents = doc_db_service.get_all_documents()
+
+        # Convert to response format
+        document_list = []
+        collections = set()
+
+        for doc in documents:
+            collections.add(doc.collection_type)
+            document_list.append({
+                "id": doc.id,
+                "filename": doc.filename,
+                "file_path": doc.file_path,
+                "collection_type": doc.collection_type,
+                "is_local_file": doc.is_local_file,
+                "file_size": doc.file_size,
+                "content_preview": doc.content_preview,
+                "upload_method": doc.upload_method,
+                "created_at": doc.created_at,
+                "updated_at": doc.updated_at
+            })
+
+        return DocumentListResponse(
+            documents=document_list,
+            total_documents=len(document_list),
+            collections=list(collections),
+            success=True
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get document list: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document list: {str(e)}")
 
 
 @router.delete("/reset")
