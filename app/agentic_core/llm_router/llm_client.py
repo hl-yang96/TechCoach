@@ -18,7 +18,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 
 class LLMProvider(str, Enum):
-    """Supported LLM providers for TechCoach."""
     KIMI = "kimi"
     OPENAI = "openai"
     CLAUDE = "claude"
@@ -27,7 +26,6 @@ class LLMProvider(str, Enum):
 
 
 class LLMConfig(BaseModel):
-    """Simple LLM configuration model."""
     provider: str
     api_key: str
     model: str
@@ -37,7 +35,6 @@ class LLMConfig(BaseModel):
 
 
 class LLMClient:
-    """Single LLM provider client using LangChain."""
     
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path or self._get_default_config_path()
@@ -45,12 +42,10 @@ class LLMClient:
         self.client = self._create_client()
     
     def _get_default_config_path(self) -> str:
-        """Get default configuration path."""
         project_root = Path(__file__).parent.parent.parent.parent
         return str(project_root / "config" / "llm_config.yaml")
     
     def _load_config(self) -> LLMConfig:
-        """Load configuration from YAML."""
         try:
             config_path = Path(self.config_path)
             if not config_path.exists():
@@ -92,7 +87,6 @@ class LLMClient:
             raise
     
     def _create_client(self):
-        """Create LangChain client for the configured provider."""
         config = self.config
 
         if config.provider == 'claude':
@@ -120,7 +114,6 @@ class LLMClient:
             )
     
     def chat(self, message: str) -> str:
-        """Send a chat message and get response."""
         try:
             response = self.client.invoke(message)
             return response.content
@@ -128,8 +121,10 @@ class LLMClient:
             return f"Error: {str(e)}"
     
     def get_config(self) -> LLMConfig:
-        """Get current configuration."""
         return self.config
+    
+    def get_base_llm_client():
+        return self.client
 
 
 # Global LLM client instance

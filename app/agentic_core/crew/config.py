@@ -71,17 +71,3 @@ class CrewConfig:
     def add_task(self, task_config: TaskConfig):
         """添加 Task 配置"""
         self.tasks.append(task_config)
-
-
-# 默认 Agent 配置模板 (已废弃 - 请使用 agent_manager.py 中的 PROFESSIONAL_AGENT_CONFIGS)
-# @deprecated: 使用 PROFESSIONAL_AGENT_CONFIGS 替代
-DEFAULT_AGENT_CONFIGS = {
-    # 保留为空，避免破坏现有代码
-}
-
-
-# 默认 Task 配置模板 (已废弃 - 请使用 task_manager.py 中的 PROFESSIONAL_TASK_CONFIGS)
-# @deprecated: 使用 PROFESSIONAL_TASK_CONFIGS 替代
-DEFAULT_TASK_CONFIGS = {
-    # 保留为空，避免破坏现有代码
-}

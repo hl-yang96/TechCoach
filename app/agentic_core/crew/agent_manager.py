@@ -16,7 +16,6 @@ from ..tools.vector_search_tool import VectorSearchTool
 
 logger = logging.getLogger(__name__)
 
-# 专业 Agent 配置 - 基于具体业务需求设计
 PROFESSIONAL_AGENT_CONFIGS = {
     "job_seeker_analyst": AgentConfig(
         # role="Job Seeker Background Analyst",
@@ -60,31 +59,15 @@ PROFESSIONAL_AGENT_CONFIGS = {
 
 
 class AgentManager:
-    """Agent 管理器类"""
 
     def __init__(self, llm_client: Optional[LLMClient] = None, auto_initialize: bool = True):
-        """
-        初始化 Agent 管理器
-
-        Args:
-            llm_client: LLM 客户端实例，用于与语言模型交互
-            auto_initialize: 是否自动初始化专业 Agents
-        """
         self.llm_client = llm_client
         self.agents: Dict[str, Agent] = {}
         self.agent_configs: Dict[str, AgentConfig] = {}
-
-        # 自动初始化专业 Agents
         if auto_initialize:
             self.initialize_professional_agents()
 
     def initialize_professional_agents(self) -> bool:
-        """
-        初始化专业 Agents
-
-        Returns:
-            是否成功初始化所有 Agents
-        """
         try:
             success_count = 0
             vector_search_tool = VectorSearchTool()
@@ -111,23 +94,10 @@ class AgentManager:
                     agent_config: AgentConfig,
                     tools: Optional[List[Any]] = None,
                     llm: Optional[Any] = None) -> Agent:
-        """
-        创建一个新的 Agent
-        
-        Args:
-            agent_config: Agent 配置
-            tools: 工具列表
-            llm: 语言模型实例
-            
-        Returns:
-            创建的 Agent 实例
-        """
         try:
-            # 如果没有提供 LLM，使用默认的
             if llm is None:
                 llm = self._get_default_llm()
             
-            # 创建 Agent
             agent = Agent(
                 role=agent_config.role,
                 goal=agent_config.goal,
@@ -153,15 +123,6 @@ class AgentManager:
             raise
     
     def get_professional_agent(self, agent_type: str) -> Optional[Agent]:
-        """
-        获取专业 Agent
-
-        Args:
-            agent_type: Agent 类型 ("job_seeker_analyst" 或 "interview_question_expert")
-
-        Returns:
-            Agent 实例或 None
-        """
         if agent_type not in PROFESSIONAL_AGENT_CONFIGS:
             logger.error(f"Unknown professional agent type: {agent_type}")
             return None
@@ -173,52 +134,24 @@ class AgentManager:
         return self.get_agent(agent_key)
 
     def get_job_seeker_analyst(self) -> Optional[Agent]:
-        """获取求职者背景分析师 Agent"""
         return self.get_professional_agent("job_seeker_analyst")
 
     def get_interview_question_expert(self) -> Optional[Agent]:
-        """获取面试题生成专家 Agent"""
         return self.get_professional_agent("interview_question_expert")
 
     def get_industry_expert(self) -> Optional[Agent]:
-        """获取行业知识专家 Agent"""
         return self.get_professional_agent("industry_expert")
 
     def list_professional_agents(self) -> List[str]:
-        """列出所有专业 Agent 类型"""
         return list(PROFESSIONAL_AGENT_CONFIGS.keys())
     
     def get_agent(self, agent_key: str) -> Optional[Agent]:
-        """
-        获取已创建的 Agent
-        
-        Args:
-            agent_key: Agent 键名
-            
-        Returns:
-            Agent 实例或 None
-        """
         return self.agents.get(agent_key)
     
     def list_agents(self) -> List[str]:
-        """
-        列出所有已创建的 Agent
-        
-        Returns:
-            Agent 键名列表
-        """
         return list(self.agents.keys())
     
     def remove_agent(self, agent_key: str) -> bool:
-        """
-        移除 Agent
-        
-        Args:
-            agent_key: Agent 键名
-            
-        Returns:
-            是否成功移除
-        """
         if agent_key in self.agents:
             del self.agents[agent_key]
             del self.agent_configs[agent_key]
@@ -227,12 +160,6 @@ class AgentManager:
         return False
     
     def _get_default_llm(self) -> Any:
-        """
-        获取默认的 LLM 实例
-        
-        Returns:
-            LLM 实例
-        """
         try:
             # 如果有 LLM 客户端，尝试使用它
             if self.llm_client:
