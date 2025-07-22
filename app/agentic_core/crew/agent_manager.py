@@ -10,7 +10,7 @@ from crewai import Agent
 from langchain_openai import ChatOpenAI
 
 from .config import AgentConfig
-from ..llm_router.llm_client import LLMClient
+from ..llm_router.llm_client import LLMClient, get_llm_client
 from ..tools.vector_search_tool import VectorSearchTool
 
 
@@ -61,7 +61,7 @@ PROFESSIONAL_AGENT_CONFIGS = {
 class AgentManager:
 
     def __init__(self, llm_client: Optional[LLMClient] = None, auto_initialize: bool = True):
-        self.llm_client = llm_client
+        self.llm_client = llm_client or get_llm_client().get_base_llm_client()
         self.agents: Dict[str, Agent] = {}
         self.agent_configs: Dict[str, AgentConfig] = {}
         if auto_initialize:
@@ -95,9 +95,6 @@ class AgentManager:
                     tools: Optional[List[Any]] = None,
                     llm: Optional[Any] = None) -> Agent:
         try:
-            if llm is None:
-                llm = self._get_default_llm()
-            
             agent = Agent(
                 role=agent_config.role,
                 goal=agent_config.goal,
@@ -107,7 +104,7 @@ class AgentManager:
                 max_iter=agent_config.max_iter,
                 memory=agent_config.memory,
                 tools=tools or [],
-                llm=llm
+                llm=llm or self.llm_client
             )
             
             # 存储 Agent 和配置
@@ -158,27 +155,6 @@ class AgentManager:
             logger.info(f"Removed agent: {agent_key}")
             return True
         return False
-    
-    def _get_default_llm(self) -> Any:
-        try:
-            # 如果有 LLM 客户端，尝试使用它
-            if self.llm_client:
-                # 这里可以根据你的 LLMClient 实现来调整
-                # 暂时使用 OpenAI 作为默认
-                return ChatOpenAI(
-                    model="gpt-3.5-turbo",
-                    temperature=0.1
-                )
-            else:
-                # 默认使用 OpenAI
-                return ChatOpenAI(
-                    model="gpt-3.5-turbo", 
-                    temperature=0.1
-                )
-        except Exception as e:
-            logger.warning(f"Failed to create default LLM: {str(e)}")
-            # 返回一个基本的 LLM 实例
-            return ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
     
     def get_agent_info(self, agent_key: str) -> Optional[Dict[str, Any]]:
         """

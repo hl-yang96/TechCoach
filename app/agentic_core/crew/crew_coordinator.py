@@ -7,8 +7,8 @@ Crew 协调器
 from typing import Dict, List, Optional, Any
 import logging
 from crewai import Crew, Process
-from langchain_openai import ChatOpenAI
 
+from app.agentic_core.llm_router.llm_client import get_llm_client
 from .config import CrewConfig
 from .agent_manager import AgentManager
 from .task_manager import TaskManager
@@ -171,11 +171,4 @@ class CrewCoordinator:
         return self.create_crew(crew_config)
     
     def _get_default_manager_llm(self) -> Any:
-        try:
-            return ChatOpenAI(
-                model="gpt-4-mini",
-                temperature=0.1
-            )
-        except Exception as e:
-            logger.warning(f"Failed to create manager LLM: {str(e)}")
-            return ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+        return get_llm_client().get_base_llm_client()
