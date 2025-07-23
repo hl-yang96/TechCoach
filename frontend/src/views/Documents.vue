@@ -133,7 +133,7 @@
                   type="textarea"
                   placeholder="请输入文档内容，如简历信息、项目经验等..."
                   :rows="12"
-                  maxlength="10000"
+                  maxlength="7000"
                   show-word-limit
                   class="text-input"
                   :autosize="{ minRows: 12, maxRows: 20 }"

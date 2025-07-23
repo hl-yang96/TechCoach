@@ -7,17 +7,19 @@ Agent 管理器
 from typing import Dict, List, Optional, Any
 import logging
 from crewai import Agent
-from langchain_openai import ChatOpenAI
 
 from .config import AgentConfig
 from ..llm_router.llm_client import LLMClient, get_llm_client
-from ..tools.vector_search_tool import VectorSearchTool
 
 
 logger = logging.getLogger(__name__)
 
+JOB_SEEKER_ANALYST_AGENT = "job_seeker_analyst"
+INTERVIEW_QUESTION_EXPERT_AGENT = "interview_question_expert"
+INDUSTRY_EXPERT_AGENT = "industry_expert"
+
 PROFESSIONAL_AGENT_CONFIGS = {
-    "job_seeker_analyst": AgentConfig(
+    JOB_SEEKER_ANALYST_AGENT: AgentConfig(
         # role="Job Seeker Background Analyst",
         role="求职者背景分析师",
         # goal="""You need to conduct a comprehensive understanding and analysis of job seekers, including their work experience, project experience, technical stack and work capabilities, job search goals, career highlights, potential advantages, potential risks, salary levels, etc. Then output a concise, powerful, rich and comprehensive analysis result.""",
@@ -31,7 +33,7 @@ PROFESSIONAL_AGENT_CONFIGS = {
         tools=["vector_search"]
     ),
 
-    "interview_question_expert": AgentConfig(
+    INTERVIEW_QUESTION_EXPERT_AGENT: AgentConfig(
         # role="Interview Question Generation Expert",
         role="面试题库生成专家",
         # goal="""Based on the job seeker's background analysis, generate a rich and comprehensive knowledge question bank that matches the job seeker.""",
@@ -40,12 +42,12 @@ PROFESSIONAL_AGENT_CONFIGS = {
         backstory="""你是一位经验丰富的面试官，你能够对不同领域的面试题有非常深入地了解，你还拥有丰富的向量检索和 LlamaIndex RAG 经验，你擅长通过有效地检索向量知识库中的求职者的简历以及过往项目记录和工作经验，对求职者进行深刻地了解。你不仅能够生成某个领域全面的面试题库，还能够针对性地求职者的简历或者项目经历，深入浅出地生成出一些探测面试者能力的有水平的题目。""",
         verbose=True,
         allow_delegation=False, # agent could delegate the task to other agent
-        max_iter=6,
+        max_iter=15,
         memory=False, # agent memory, not task context
         tools=["vector_search"]
     ),
 
-    "industry_expert": AgentConfig(
+    INDUSTRY_EXPERT_AGENT: AgentConfig(
         role="行业知识专家",
         goal="""你需要对求职者所在行业以及相关技术领域的知识进行分析和梳理，提取有用的信息，并且全面准确地回答问题，无论是行业技术，面试问题，知识大纲，行业发展等。""",
         backstory="""你是求职者所在行业的专家，你能够对这个行业的技术领域和知识大纲有非常深入地了解，对于某个领域的知识学习也有很深地见解，且对于行业的发展有着很强地前瞻性。同时能够知道不同背景的求职者在面对面试的时候，需要准备哪些知识点。""",
@@ -57,38 +59,12 @@ PROFESSIONAL_AGENT_CONFIGS = {
     )
 }
 
-
 class AgentManager:
 
-    def __init__(self, llm_client: Optional[LLMClient] = None, auto_initialize: bool = True):
-        self.llm_client = llm_client or get_llm_client().get_base_llm_client()
+    def __init__(self, llm_client: Optional[LLMClient] = None):
+        self.llm_client = llm_client or get_llm_client().get_base_crew_client()
         self.agents: Dict[str, Agent] = {}
         self.agent_configs: Dict[str, AgentConfig] = {}
-        if auto_initialize:
-            self.initialize_professional_agents()
-
-    def initialize_professional_agents(self) -> bool:
-        try:
-            success_count = 0
-            vector_search_tool = VectorSearchTool()
-            for agent_key, agent_config in PROFESSIONAL_AGENT_CONFIGS.items():
-                try:
-                    # 为每个 Agent 配置工具
-                    tools = [vector_search_tool] if "vector_search" in agent_config.tools else []
-                    # 创建 Agent
-                    agent = self.create_agent(agent_config, tools)
-                    if agent:
-                        success_count += 1
-                        logger.info(f"Initialized professional agent: {agent_config.role}")
-                except Exception as e:
-                    logger.error(f"Failed to initialize agent {agent_key}: {str(e)}")
-
-            logger.info(f"Successfully initialized {success_count}/{len(PROFESSIONAL_AGENT_CONFIGS)} professional agents")
-            return success_count == len(PROFESSIONAL_AGENT_CONFIGS)
-
-        except Exception as e:
-            logger.error(f"Failed to initialize professional agents: {str(e)}")
-            return False
 
     def create_agent(self,
                     agent_config: AgentConfig,

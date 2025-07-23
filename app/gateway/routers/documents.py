@@ -5,16 +5,14 @@ Purpose: API endpoints for document storage and retrieval (for CrewAI agents)
 """
 
 import logging
-import uuid
-from datetime import datetime
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from llama_index.core import Document
+
 
 from app.agentic_core.rag.document_store import DocumentStore
 from app.agentic_core.rag.chroma_client import ChromaDBClient
-from app.agentic_core.llm_router.llm_client import get_llm_client
+
 from app.shared_kernel.database_service import DocumentDBService
 from app.shared_kernel.db_models import DocumentEntity
 
@@ -217,110 +215,85 @@ async def get_context_for_agents(request: ContextRequest):
 @router.post("/ingest")
 async def ingest_documents(request: IngestDocumentsRequest):
     """Ingest documents from file path or text content with automatic classification."""
+    import json
+    from pathlib import Path
+
     try:
         store = await get_document_store()
 
-        # Validate input - either documents_path or content must be provided
+        # 0. Validate input - either documents_path or content must be provided
         if not request.documents_path and not request.content:
-            raise HTTPException(
-                status_code=400,
-                detail="Either documents_path or content must be provided"
-            )
-
+            raise HTTPException(status_code=400, detail="Either documents_path or content must be provided")
         if request.documents_path and request.content:
+            raise HTTPException(status_code=400, detail="Provide either documents_path or content, not both")
+
+        # 1. Comprehensive document ingestion (preprocessing + vector storage)
+        logger.info("Starting document ingestion...")
+        ingestion_result = store.ingest_single_document(request.documents_path, request.content)
+
+        if not ingestion_result["success"]:
             raise HTTPException(
-                status_code=400,
-                detail="Provide either documents_path or content, not both"
+                status_code=500,
+                detail=f"Document ingestion failed: {ingestion_result['error']}"
             )
 
-        # Handle file path ingestion
-        if request.documents_path:
-            success = store.ingest_documents(
-                documents_path=request.documents_path,
-                collection_type=request.collection_type
+        logger.info(f"Document ingestion completed successfully")
+
+        # Extract results from ingestion
+        document_id = ingestion_result["document_id"]
+        final_filename = ingestion_result["final_filename"]
+        file_description = ingestion_result["description"]
+        file_abstract = ingestion_result["abstract"]
+        file_path = ingestion_result["file_path"]
+        collection_type = ingestion_result["collection_type"]
+        chroma_document_ids = ingestion_result["chroma_document_ids"]
+        file_size = ingestion_result["file_size"]
+        
+
+        # 2. Save document metadata to SQLite database
+        try:
+            doc_db_service = DocumentDBService()
+
+            # Prepare ChromaDB document IDs as JSON
+            chroma_document_id_list_json = json.dumps(chroma_document_ids, ensure_ascii=False)
+
+            document_entity = DocumentEntity(
+                id=document_id,
+                filename=final_filename,
+                file_path=file_path,
+                collection_type=collection_type,
+                chroma_document_id_list=chroma_document_id_list_json,
+                file_size=file_size,
+                file_description=file_description,
+                file_abstract=file_abstract
             )
 
-            if not success:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to ingest documents from {request.documents_path}"
-                )
+            doc_db_service.create_document(document_entity)
+            logger.info(f"Saved document metadata to database: {document_id}")
 
-            classification_mode = "automatic LLM classification" if request.collection_type is None else f"specified collection: {request.collection_type}"
+        except Exception as db_error:
+            logger.error(f"Failed to save document to database: {db_error}")
+            # Clean up the permanent file if database save fails
+            if Path(file_path).exists():
+                Path(file_path).unlink()
+            # TODO: clean document from ChromaDB if needed
+            raise HTTPException(status_code=500, detail=f"Failed to save document metadata: {str(db_error)}")
 
-            return {
-                "message": f"Successfully ingested documents from path using {classification_mode}",
-                "documents_path": request.documents_path,
-                "collection_type": request.collection_type,
-                "classification_mode": classification_mode,
-                "success": True
-            }
+        classification_mode = "automatic LLM classification"
 
-        # Handle text content ingestion
-        else:
-            # Create document ID
-            document_id = str(uuid.uuid4())
-
-            # Create LlamaIndex Document object
-            document = Document(
-                text=request.content,
-                metadata={
-                    "file_name": request.filename or "未知",
-                    "document_id": document_id,
-                    "upload_timestamp": datetime.now().isoformat(),
-                    "upload_method": "text_content"
-                }
-            )
-
-            # Ingest the document
-            success = store._ingest_single_document(document, request.collection_type)
-
-            if not success:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to ingest text content"
-                )
-
-            classification_mode = "automatic LLM classification" if request.collection_type is None else f"specified collection: {request.collection_type}"
-
-            # Get the final filename and collection type (might be generated by LLM)
-            final_filename = document.metadata.get("file_name", request.filename or "未知文档")
-            final_collection_type = document.metadata.get("collection_type", request.collection_type or "unknown")
-
-            # Save document info to SQLite database
-            try:
-                doc_db_service = DocumentDBService()
-
-                # Create content preview (first 200 characters)
-                content_preview = request.content[:200] + "..." if len(request.content) > 200 else request.content
-
-                document_entity = DocumentEntity(
-                    id=document_id,
-                    filename=final_filename,
-                    file_path=final_filename,  # For text content, use filename as path
-                    collection_type=final_collection_type,
-                    chroma_document_id=document_id,  # Use same ID for ChromaDB reference
-                    is_local_file=False,  # Text content is not a local file
-                    file_size=len(request.content.encode('utf-8')),  # Size in bytes
-                    content_preview=content_preview,
-                    upload_method="text_content"
-                )
-
-                doc_db_service.create_document(document_entity)
-                logger.info(f"Saved document to database: {document_id}")
-
-            except Exception as db_error:
-                logger.warning(f"Failed to save document to database: {db_error}")
-                # Don't fail the entire operation if database save fails
-
-            return {
-                "message": f"Successfully ingested text content using {classification_mode}",
-                "document_id": document_id,
-                "filename": final_filename,
-                "collection_type": final_collection_type,
-                "classification_mode": classification_mode,
-                "success": True
-            }
+        return {
+            "message": f"Successfully ingested document using {classification_mode}",
+            "document_id": document_id,
+            "filename": final_filename,
+            "file_path": file_path,
+            "file_size": file_size,
+            "file_description": file_description,
+            "file_abstract": file_abstract,
+            "collection_type": collection_type,
+            "classification_mode": classification_mode,
+            "chroma_document_ids": chroma_document_ids,
+            "success": True
+        }
 
     except HTTPException:
         raise
@@ -347,10 +320,10 @@ async def get_uploaded_documents():
                 "filename": doc.filename,
                 "file_path": doc.file_path,
                 "collection_type": doc.collection_type,
-                "is_local_file": doc.is_local_file,
+                "chroma_document_id_list": doc.chroma_document_id_list,
                 "file_size": doc.file_size,
-                "content_preview": doc.content_preview,
-                "upload_method": doc.upload_method,
+                "file_description": doc.file_description,
+                "file_abstract": doc.file_abstract,
                 "created_at": doc.created_at,
                 "updated_at": doc.updated_at
             })
@@ -377,6 +350,12 @@ async def reset_collection(request: ResetCollectionRequest = None):
 
         # Reset collection(s)
         success = store.reset_collection(collection_type)
+
+        doc_db_service = DocumentDBService()
+        if collection_type:
+            doc_db_service.delete_document_by_collection_type(collection_type)
+        else:
+            doc_db_service.delete_all_documents()
 
         if not success:
             raise HTTPException(

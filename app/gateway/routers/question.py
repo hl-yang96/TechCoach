@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from app.shared_kernel.database_service import TechDomainDBService, TechDomainQuestionDBService
 from app.question_service.service import tech_domain_service, tech_question_service
+from app.agentic_core.crew.crew_coordinator import CrewCoordinator
 
 router = APIRouter()
 db_service = TechDomainDBService()
@@ -231,6 +232,74 @@ async def generate_tech_domain_questions(request: QuestionGenerateRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
+
+
+@router.post("/tech-domains/questions/agentic_generate", response_model=QuestionsListResponse)
+async def generate_tech_domain_questions_agentic(request: QuestionGenerateRequest):
+    """
+    使用 CrewAI 生成特定技术领域的面试题库
+    """
+    try:
+        # 先删除该领域的所有现有问题
+        deleted_count = question_db_service.delete_questions_by_domain(request.domain_name)
+        if deleted_count > 0:
+            print(f"Deleted {deleted_count} existing questions for domain: {request.domain_name}")
+
+        # 使用 CrewAI 生成问题
+        coordinator = CrewCoordinator()
+        result = await coordinator.execute_question_generation_crew(request.domain_name)
+
+        if result["status"] != "success":
+            raise HTTPException(status_code=500, detail=f"CrewAI execution failed: {result.get('error', 'Unknown error')}")
+
+        # 解析 CrewAI 的结果
+        crew_result = result["result"]
+
+        # 从最后一个任务的输出中提取问题
+        if hasattr(crew_result, 'tasks_output') and crew_result.tasks_output:
+            last_task_output = crew_result.tasks_output[-1]
+            questions_json = last_task_output.raw if hasattr(last_task_output, 'raw') else str(last_task_output)
+        else:
+            questions_json = str(crew_result)
+
+        # 解析 JSON 格式的问题
+        import json
+        try:
+            questions_data = json.loads(questions_json)
+            questions_list = questions_data.get("questions", [])
+        except json.JSONDecodeError:
+            # 如果不是 JSON 格式，尝试简单解析
+            questions_list = [q.strip() for q in questions_json.split('\n') if q.strip()]
+
+        # 保存生成的问题到数据库
+        created_questions = []
+        for question_text in questions_list:
+            if question_text:
+                try:
+                    created_question = question_db_service.create_question(
+                        domain_name=request.domain_name,
+                        question_text=question_text,
+                        generated_answer=None
+                    )
+
+                    question_response = {
+                        "id": created_question.id,
+                        "domain_name": created_question.domain_name,
+                        "question_text": created_question.question_text,
+                        "user_answer": created_question.user_answer,
+                        "generated_answer": created_question.generated_answer,
+                        "created_at": str(created_question.created_at) if created_question.created_at else None,
+                        "updated_at": str(created_question.updated_at) if created_question.updated_at else None
+                    }
+                    created_questions.append(question_response)
+                except Exception as e:
+                    print(f"Error creating question: {e}")
+                    continue
+
+        return {"questions": created_questions}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate questions with CrewAI: {str(e)}")
 
 
 @router.post("/tech-domains/questions/get_all", response_model=QuestionsListResponse)

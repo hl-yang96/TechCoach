@@ -46,11 +46,10 @@ class DocumentEntity():
         filename: str,
         file_path: str,
         collection_type: str,
-        chroma_document_id: Optional[str] = None,
-        is_local_file: bool = True,
+        chroma_document_id_list: Optional[str] = None,  # JSON string of list
         file_size: Optional[int] = None,
-        content_preview: Optional[str] = None,
-        upload_method: str = "file",  # "file" or "text"
+        file_description: Optional[str] = None,
+        file_abstract: Optional[str] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
     ):
@@ -58,10 +57,21 @@ class DocumentEntity():
         self.filename = filename
         self.file_path = file_path
         self.collection_type = collection_type
-        self.chroma_document_id = chroma_document_id
-        self.is_local_file = is_local_file
+        self.chroma_document_id_list = chroma_document_id_list
         self.file_size = file_size
-        self.content_preview = content_preview
-        self.upload_method = upload_method
+        self.file_description = file_description
+        self.file_abstract = file_abstract
         self.created_at = created_at
         self.updated_at = updated_at
+
+
+        self.id
+        self.filename
+        self.file_path
+        self.collection_type
+        self.chroma_document_id_list
+        self.file_size
+        self.file_description
+        self.file_abstract
+        self.created_at
+        self.updated_at

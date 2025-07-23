@@ -5,7 +5,6 @@ Purpose: Global configuration constants for RAG system based on user stories
 """
 
 from typing import Dict, Any, List
-from enum import Enum
 
 
 # ============================================================================
@@ -13,9 +12,9 @@ from enum import Enum
 # ============================================================================
 
 # Embedding model configuration
-EMBEDDING_MODEL_NAME = "text-embedding-004"
-EMBEDDING_BATCH_SIZE = 100
-EMBEDDING_DIMENSION = 768  # Google Gemini text-embedding-004 dimension
+EMBEDDING_MODEL_NAME = "gemini-embedding-001"
+EMBEDDING_MODEL_NAME_CREW = "models/gemini-embedding-001"
+EMBEDDING_BATCH_SIZE = 100 # Batch size for embedding operations efficiency
 
 # Metadata length limits to avoid chunk size issues
 MAX_METADATA_FIELD_LENGTH = 50  # Maximum characters for any single metadata field
@@ -23,7 +22,7 @@ MAX_SUMMARY_LENGTH = 100  # Maximum length for document summary
 MAX_KEYWORDS_COUNT = 5  # Maximum number of keywords
 
 # Global chunk size configurations for different document types
-CHUNK_SIZE_RESUMES = 256  # Smaller chunks for precise resume matching
+CHUNK_SIZE_RESUMES = 196  # Smaller chunks for precise resume matching
 CHUNK_SIZE_PROJECTS = 512  # Medium chunks for project descriptions
 CHUNK_SIZE_JOB_POSTINGS = 384  # Medium-small chunks for job requirements
 CHUNK_SIZE_INTERVIEWS = 256  # Small chunks for interview Q&A
@@ -32,7 +31,7 @@ CHUNK_SIZE_CODE_ANALYSIS = 1024  # Large chunks for code context
 CHUNK_SIZE_INDUSTRY_TRENDS = 512  # Medium chunks for trend analysis
 
 # Chunk overlap configurations
-CHUNK_OVERLAP_RESUMES = 20
+CHUNK_OVERLAP_RESUMES = 30
 CHUNK_OVERLAP_PROJECTS = 50
 CHUNK_OVERLAP_JOB_POSTINGS = 30
 CHUNK_OVERLAP_INTERVIEWS = 20
@@ -42,9 +41,9 @@ CHUNK_OVERLAP_INDUSTRY_TRENDS = 50
 
 # Retrieval configurations
 SIMILARITY_TOP_K_DEFAULT = 10
-SIMILARITY_TOP_K_RESUMES = 5
-SIMILARITY_TOP_K_PROJECTS = 8
-SIMILARITY_TOP_K_JOB_POSTINGS = 6
+SIMILARITY_TOP_K_RESUMES = 10
+SIMILARITY_TOP_K_PROJECTS = 10
+SIMILARITY_TOP_K_JOB_POSTINGS = 10
 SIMILARITY_TOP_K_INTERVIEWS = 12
 SIMILARITY_TOP_K_QNA_BANK = 15
 SIMILARITY_TOP_K_CODE_ANALYSIS = 5
@@ -55,26 +54,25 @@ SIMILARITY_TOP_K_INDUSTRY_TRENDS = 8
 # COLLECTION DEFINITIONS (Based on User Stories)
 # ============================================================================
 
-class CollectionType(str, Enum):
-    """Collection types based on user stories."""
-    # Phase 1: Core Job-Seeking Profile
-    RESUMES = "resumes"
-    PROJECTS_EXPERIENCE = "projects_experience"
-    JOB_POSTINGS = "job_postings"
-    
-    # Phase 2: Deepening Insights & Market Alignment
-    INTERVIEWS = "interviews"
-    INTERVIEW_QNA_BANK = "interview_qna_bank"
-    CODE_ANALYSIS = "code_analysis"
-    INDUSTRY_TRENDS = "industry_trends"
+
+# Phase 1: Core Job-Seeking Profile
+COLLECTION_RESUMES = "resumes"
+COLLECTION_PROJECTS_EXPERIENCE = "projects_experience"
+COLLECTION_JOB_POSTINGS = "job_postings"
+
+# Phase 2: Deepening Insights & Market Alignment
+COLLECTION_INTERVIEWS = "interviews"
+COLLECTION_INTERVIEW_QNA_BANK = "interview_qna_bank"
+COLLECTION_CODE_ANALYSIS = "code_analysis"
+COLLECTION_INDUSTRY_TRENDS = "industry_trends"
 
 
 # Collection configurations based on user stories
 COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
     # Phase 1 Collections
-    CollectionType.RESUMES: {
+    str(COLLECTION_RESUMES): {
         "name": "resumes",
-        "description": "存储用户所有版本的个人简历。用于快速查找、匹配和定制简历以适应不同岗位。",
+        "description": "存储用户所有版本的个人简历，可以用于职业发展相关的分析，匹配，推荐，面试准备等场景。",
         "metadata": {
             "type": "resume",
             "purpose": "job_matching",
@@ -87,9 +85,9 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["version", "company_focus"]
     },
     
-    CollectionType.PROJECTS_EXPERIENCE: {
+    str(COLLECTION_PROJECTS_EXPERIENCE): {
         "name": "projects_experience",
-        "description": "存储用户所有项目和工作经验的详细材料，作为简历内容的支撑和扩展。",
+        "description": "存储用户所有项目和工作经验的详细材料，作为知识库用户分析用户的工作经验，学习路线，职业发展，查漏补缺等。",
         "metadata": {
             "type": "experience",
             "purpose": "resume_support",
@@ -102,7 +100,7 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["related_resume_version", "tech_stack", "duration"]
     },
     
-    CollectionType.JOB_POSTINGS: {
+    str(COLLECTION_JOB_POSTINGS): {
         "name": "job_postings",
         "description": "存储收集到的目标岗位JD。用于市场需求分析、技能差距识别和简历匹配。",
         "metadata": {
@@ -118,7 +116,7 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     
     # Phase 2 Collections
-    CollectionType.INTERVIEWS: {
+    str(COLLECTION_INTERVIEWS): {
         "name": "interviews",
         "description": "存储所有面试的记录、问题和反馈。用于复盘、发现知识盲区和预测高频考点。",
         "metadata": {
@@ -133,7 +131,7 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["interviewer", "difficulty", "feedback"]
     },
     
-    CollectionType.INTERVIEW_QNA_BANK: {
+    str(COLLECTION_INTERVIEW_QNA_BANK): {
         "name": "interview_qna_bank",
         "description": "从互联网、论坛、GitHub等渠道收集的通用面试题库，用于补充和扩展个人面试经验，进行模拟训练。",
         "metadata": {
@@ -148,7 +146,7 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["difficulty", "frequency", "tags"]
     },
     
-    CollectionType.CODE_ANALYSIS: {
+    str(COLLECTION_CODE_ANALYSIS): {
         "name": "code_analysis",
         "description": "（针对开发者）存储对用户代码库的静态分析结果和摘要。用于客观评估技术能力和梳理技术亮点。",
         "metadata": {
@@ -163,7 +161,7 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["complexity_score", "test_coverage", "code_quality"]
     },
     
-    CollectionType.INDUSTRY_TRENDS: {
+    str(COLLECTION_INDUSTRY_TRENDS): {
         "name": "industry_trends",
         "description": "存储行业报告和技术趋势分析文章。用于提升对话的战略高度和行业视野。",
         "metadata": {
@@ -181,13 +179,13 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
 
 
 # ============================================================================
-# LLM CLASSIFICATION PROMPTS
+# LLM DOCUMENT PROCESSING PROMPTS
 # ============================================================================
 
-DOCUMENT_CLASSIFICATION_PROMPT = """
-你是一个专业的文档分类专家。请分析以下文档内容，并确定它应该属于哪个集合(collection)以及相应的元数据。
+DOCUMENT_PREPROCESSING_PROMPT = """
+你是一个专业的文档预处理专家。请对以下文档进行全面的预处理，包括重命名、分类、清理、生成描述和摘要。
 
-可选的集合类型：
+分类可选的集合类型：
 1. resumes - 个人简历
 2. projects_experience - 项目和工作经验
 3. job_postings - 职位招聘信息
@@ -199,64 +197,59 @@ DOCUMENT_CLASSIFICATION_PROMPT = """
 文档内容：
 {document_content}
 
-文档文件名：{filename}
+原始文件名：{filename}
 
-请以JSON格式返回分类结果，包含：
-1. collection_type: 集合类型
-2. metadata: 相关元数据字典(每个字段限制30字符以内,简单K-V,V只能是字符串或者数字)
-3. confidence: 分类置信度 (0-1)
-4. reasoning: 分类理由(限制50字符以内)
-5. generated_filename: 如果文件名为空或"未知"，请根据文档内容生成一个有意义的文件名(5-15个中文字符，不包含特殊字符)
+请完成以下预处理任务并以JSON格式返回结果：
 
-示例输出（有文件名时）：
+1. **重命名 (rename)**: 无论是否提供文件名，都要根据文档内容生成一个有意义的文件名(5-15个中文字符，不包含特殊字符)
+2. **描述 (description)**: 生成文档的简要描述(20-30个字符)
+3. **摘要 (abstract)**: 生成文档的详细摘要, 对全文总结凝练(80-100个字符)
+4. **清理 (cleaning)**: 将文档内容中的无用的格式/不合理的换行等等去除，在较为相关的内容之间，删除过多的空行或者换行。在相关性较弱的段落之间，添加"\\n---\\n"来进行分割。
+5. **分类 (classification)**: 确定文档所属的集合类型，从上面的分类列表中选取
+
+返回格式：
 {{
+    "renamed_filename": "生成的有意义文件名",
+    "description": "20-30字符的简要描述",
+    "abstract": "80-100字符的详细摘要",
+    "cleaned_content": "清理后的规范化文本内容",
+    "collection_type": "集合类型",
+}}
+
+示例输出：
+{{
+    "renamed_filename": "xxx软件工程师简历",
+    "description": "xxx的资深软件工程师个人简历",
+    "abstract": "具有5年Java开发经验的软件工程师，学历优秀，有分布式和流媒体大型项目经验，求职放心为后端开发，...",
+    "cleaned_content": "清理后的完整文档内容...",
     "collection_type": "resumes",
-    "metadata": {{
-        "target_job": "软件工程师",
-        "language": "中文",
-        "last_updated": "2025-07-20"
-    }},
-    "confidence": 0.95,
-    "reasoning": "简历内容"
 }}
 
-示例输出（无文件名时）：
-{{
-    "collection_type": "projects_experience",
-    "metadata": {{
-        "project_name": "电商系统",
-        "document_type": "项目描述",
-        "is_technical": true
-    }},
-    "confidence": 0.90,
-    "reasoning": "项目经验描述",
-    "generated_filename": "电商系统项目经验"
-}}
-不要输出处理json外的任何其他的文字或者格式符号等。
+不要输出除JSON外的任何其他文字或格式符号。
 """
 
-METADATA_ENHANCEMENT_PROMPT = """
-你是一个元数据增强专家。请为以下文档生成丰富的元数据，以便更好地进行检索和分析。
+# METADATA_ENHANCEMENT_PROMPT = """
+# 你是一个元数据增强专家。请为以下文档生成丰富的元数据，以便更好地进行检索和分析。
 
-集合类型：{collection_type}
-文档内容：{document_content}
-当前元数据：{current_metadata}
+# 集合类型：{collection_type}
+# 文档内容：{document_content}
+# 当前元数据：{current_metadata}
 
-必需的元数据字段：{required_fields}
-可选的元数据字段：{optional_fields}
+# 必需的元数据字段：{required_fields}
+# 可选的元数据字段：{optional_fields}
 
-请以JSON格式返回增强后的元数据：
-{{
-    "enhanced_metadata": {{
-        // 增强后的完整元数据(简单K-V,V只能是字符串或者数字;每个字段限制50字符以内)
-    }},
-    "extracted_keywords": [
-        // 从文档中提取的关键词(最多5个,每个限制20字符)
-    ],
-    "summary": "文档内容摘要(限制100字符以内)"
-}}
-不要输出处理json外的任何其他的文字或者格式符号等。
-"""
+# 请以JSON格式返回增强后的元数据：
+# {{
+#     "enhanced_metadata": {{
+#         // 增强后的完整元数据(简单K-V,V只能是字符串或者数字;每个字段限制50字符以内)
+#     }},
+#     "extracted_keywords": [
+#         // 从文档中提取的关键词(最多5个,每个限制20字符)
+#     ],
+#     "summary": "文档内容摘要(限制100字符以内)"
+# }}
+# 不要输出处理json外的任何其他的文字或者格式符号等。
+# """
 
 
 # ============================================================================
@@ -265,7 +258,7 @@ METADATA_ENHANCEMENT_PROMPT = """
 
 def get_collection_config(collection_type: str) -> Dict[str, Any]:
     """Get configuration for a specific collection type."""
-    return COLLECTION_CONFIGS.get(collection_type, {})
+    return COLLECTION_CONFIGS.get(collection_type, None)
 
 
 def get_chunk_config(collection_type: str) -> Dict[str, int]:

@@ -49,11 +49,10 @@ class TechDomainDBService:
                 filename TEXT NOT NULL,
                 file_path TEXT NOT NULL,
                 collection_type TEXT NOT NULL,
-                chroma_document_id TEXT,
-                is_local_file BOOLEAN DEFAULT TRUE,
+                chroma_document_id_list TEXT,
                 file_size INTEGER,
-                content_preview TEXT,
-                upload_method TEXT DEFAULT 'file',
+                file_description TEXT,
+                file_abstract TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -314,22 +313,37 @@ class DocumentDBService:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Create documents table
+        # Create documents table with simplified schema
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
                 filename TEXT NOT NULL,
                 file_path TEXT NOT NULL,
                 collection_type TEXT NOT NULL,
-                chroma_document_id TEXT,
-                is_local_file BOOLEAN DEFAULT TRUE,
+                chroma_document_id_list TEXT,
                 file_size INTEGER,
-                content_preview TEXT,
-                upload_method TEXT DEFAULT 'file',
+                file_description TEXT,
+                file_abstract TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # Add new columns to existing table if they don't exist (for migration)
+        try:
+            cursor.execute('ALTER TABLE documents ADD COLUMN chroma_document_id_list TEXT')
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
+        try:
+            cursor.execute('ALTER TABLE documents ADD COLUMN file_description TEXT')
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute('ALTER TABLE documents ADD COLUMN file_abstract TEXT')
+        except sqlite3.OperationalError:
+            pass
 
         conn.commit()
         conn.close()
@@ -343,13 +357,13 @@ class DocumentDBService:
         try:
             cursor.execute('''
                 INSERT INTO documents (
-                    id, filename, file_path, collection_type, chroma_document_id,
-                    is_local_file, file_size, content_preview, upload_method
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, filename, file_path, collection_type, chroma_document_id_list,
+                    file_size, file_description, file_abstract
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 document.id, document.filename, document.file_path, document.collection_type,
-                document.chroma_document_id, document.is_local_file, document.file_size,
-                document.content_preview, document.upload_method
+                document.chroma_document_id_list, document.file_size,
+                document.file_description, document.file_abstract
             ))
             conn.commit()
 
@@ -364,11 +378,10 @@ class DocumentDBService:
                     filename=row["filename"],
                     file_path=row["file_path"],
                     collection_type=row["collection_type"],
-                    chroma_document_id=row["chroma_document_id"],
-                    is_local_file=bool(row["is_local_file"]),
+                    chroma_document_id_list=row["chroma_document_id_list"],
                     file_size=row["file_size"],
-                    content_preview=row["content_preview"],
-                    upload_method=row["upload_method"],
+                    file_description=row["file_description"],
+                    file_abstract=row["file_abstract"],
                     created_at=row["created_at"],
                     updated_at=row["updated_at"]
                 )
@@ -396,11 +409,10 @@ class DocumentDBService:
                 filename=row["filename"],
                 file_path=row["file_path"],
                 collection_type=row["collection_type"],
-                chroma_document_id=row["chroma_document_id"],
-                is_local_file=bool(row["is_local_file"]),
+                chroma_document_id_list=row["chroma_document_id_list"],
                 file_size=row["file_size"],
-                content_preview=row["content_preview"],
-                upload_method=row["upload_method"],
+                file_description=row["file_description"],
+                file_abstract=row["file_abstract"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"]
             )
@@ -427,11 +439,10 @@ class DocumentDBService:
                 filename=row["filename"],
                 file_path=row["file_path"],
                 collection_type=row["collection_type"],
-                chroma_document_id=row["chroma_document_id"],
-                is_local_file=bool(row["is_local_file"]),
+                chroma_document_id_list=row["chroma_document_id_list"],
                 file_size=row["file_size"],
-                content_preview=row["content_preview"],
-                upload_method=row["upload_method"],
+                file_description=row["file_description"],
+                file_abstract=row["file_abstract"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"]
             )
@@ -454,24 +465,40 @@ class DocumentDBService:
                 filename=row["filename"],
                 file_path=row["file_path"],
                 collection_type=row["collection_type"],
-                chroma_document_id=row["chroma_document_id"],
-                is_local_file=bool(row["is_local_file"]),
+                chroma_document_id_list=row.get("chroma_document_id_list"),
                 file_size=row["file_size"],
-                content_preview=row["content_preview"],
-                upload_method=row["upload_method"],
+                file_description=row.get("file_description"),
+                file_abstract=row.get("file_abstract"),
                 created_at=row["created_at"],
                 updated_at=row["updated_at"]
             )
         return None
-
-    def delete_document(self, document_id: str) -> bool:
+    
+    def delete_document_by_id(self, document_id: str) -> bool:
         """Delete a document by ID"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         cursor.execute('DELETE FROM documents WHERE id = ?', (document_id,))
         affected = cursor.rowcount
         conn.commit()
         conn.close()
+        return affected > 0
 
+    def delete_document_by_collection_type(self, collection_type: str) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM documents WHERE collection_type = ?', (collection_type,))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    def delete_all_documents(self) -> bool:
+        """Delete all documents"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM documents')
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
         return affected > 0

@@ -10,22 +10,25 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 
 # LlamaIndex imports for document processing and vector storage
-from llama_index.core import VectorStoreIndex, StorageContext, Settings, SimpleDirectoryReader
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import VectorStoreIndex, StorageContext, Settings, SimpleDirectoryReader, Document
+from llama_index.core.node_parser import SentenceSplitter, SemanticSplitterNodeParser
+from llama_index.core.node_parser.text.utils import split_by_sep
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
+from llama_index.readers.file.unstructured import UnstructuredReader
+
 
 from .chroma_client import ChromaDBClient
 from .config import (
     EMBEDDING_MODEL_NAME,
     EMBEDDING_BATCH_SIZE,
     COLLECTION_CONFIGS,
-    CollectionType,
+    COLLECTION_PROJECTS_EXPERIENCE,
     get_collection_config,
     get_chunk_config,
     get_retrieval_config
 )
-from .document_classifier import get_document_classifier
+from .document_processor import get_document_processor
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,11 +45,13 @@ class DocumentStore:
     - Vector database operations for job-seeking profile management
 
     Design Philosophy:
-    - NO LLM generation (handled by CrewAI agents)
     - Focus on storage and retrieval
     - Provide rich context for agents
     - Support multiple specialized collections based on user stories
     """
+
+    
+
     
     def __init__(self, chroma_host: Optional[str] = None, chroma_port: Optional[int] = None):
         """
@@ -59,27 +64,14 @@ class DocumentStore:
         self.chroma_client = ChromaDBClient(host=chroma_host, port=chroma_port)
         self.indexes: Dict[str, VectorStoreIndex] = {}  # Multiple indexes for different collections
         self.retrievers: Dict[str, Any] = {}  # Multiple retrievers for different collections
-        self.document_classifier = get_document_classifier()
-        self._setup_embedding_config()
-        
-    def _setup_embedding_config(self):
-        """Configure embedding model for document vectorization."""
-        # Only configure embedding model - no LLM needed
+        self.document_processor = get_document_processor()
         Settings.embed_model = GoogleGenAIEmbedding(
             model_name=EMBEDDING_MODEL_NAME,
             api_key=os.getenv("GEMINI_API_KEY"),
             embed_batch_size=EMBEDDING_BATCH_SIZE
         )
-        
-        # Configure text splitter for optimal chunking
-        Settings.node_parser = SentenceSplitter(
-            chunk_size=512,
-            chunk_overlap=50,
-            separator=" "
-        )
-        
         logger.info("Document Store configured for embedding and chunking")
-    
+        
     async def initialize(self) -> bool:
         """
         Initialize document storage system with all collections.
@@ -96,6 +88,9 @@ class DocumentStore:
             # Initialize all collections based on user stories
             await self._initialize_collections()
 
+            # Rebuild retrievers for existing collections with data
+            await self._rebuild_all_retrievers()
+
             logger.info("Document Store initialized successfully with all collections")
             return True
 
@@ -105,27 +100,74 @@ class DocumentStore:
 
     async def _initialize_collections(self):
         """Initialize all document collections based on user stories."""
-        try:
-            for collection_type, config in COLLECTION_CONFIGS.items():
+        for collection_type, config in COLLECTION_CONFIGS.items():
+            try:
                 self.chroma_client.get_or_create_collection(
                     name=config["name"],
                     metadata=config["metadata"]
                 )
                 logger.info(f"Initialized collection: {config['name']} ({collection_type})")
+
+            except Exception as e:
+                logger.warning(f"Failed to initialize collection for {collection_type}: {e}")
+
+    async def _rebuild_all_retrievers(self):
+        """Rebuild retrievers for all collections that have data."""
+        for collection_type in COLLECTION_CONFIGS.keys():
+            try:
+                await self._rebuild_retriever_for_collection(collection_type)
+            except Exception as e:
+                logger.warning(f"Failed to rebuild retriever for {collection_type}: {e}")
+                continue
+
+    async def _rebuild_retriever_for_collection(self, collection_type: str):
+        """Rebuild retriever for a specific collection if it has data."""
+        try:
+            if collection_type in self.retrievers:
+                logger.debug(f"Retriever for {collection_type} already exists")
+                return
+
+            config = COLLECTION_CONFIGS.get(collection_type)
+            if not config:
+                logger.warning(f"No config found for collection type: {collection_type}")
+                return
+
+            collection_name = config["name"]
+
+            # Try to get existing collection
+            try:
+                collection = self.chroma_client.client.get_collection(name=collection_name)
+                count = collection.count()
+
+                if count > 0:
+                    logger.info(f"Found {count} documents in collection {collection_type}, rebuilding retriever...")
+
+                    # Create ChromaVectorStore and index
+                    from llama_index.vector_stores.chroma import ChromaVectorStore
+                    from llama_index.core import VectorStoreIndex
+
+                    vector_store = ChromaVectorStore(chroma_collection=collection)
+                    index = VectorStoreIndex.from_vector_store(vector_store)
+
+                    self.indexes[collection_type] = index
+
+                    # Create retriever with collection-specific configuration
+                    retrieval_config = get_retrieval_config(collection_type)
+                    self.retrievers[collection_type] = index.as_retriever(
+                        similarity_top_k=retrieval_config["similarity_top_k"]
+                    )
+
+                    logger.info(f"Successfully rebuilt retriever for {collection_type} ({count} documents)")
+                else:
+                    logger.debug(f"Collection {collection_type} is empty, skipping retriever creation")
+
+            except Exception as collection_error:
+                logger.debug(f"Collection {collection_type} not found or inaccessible: {collection_error}")
+
         except Exception as e:
-            logger.error(f"Failed to initialize collections: {e}")
-    
+            logger.warning(f"Failed to rebuild retriever for {collection_type}: {e}")
+
     def ingest_documents(self, documents_path: str, collection_type: Optional[str] = None) -> bool:
-        """
-        Ingest documents with automatic classification and metadata generation.
-
-        Args:
-            documents_path: Path to directory containing documents
-            collection_type: Optional specific collection type, if None will auto-classify
-
-        Returns:
-            True if ingestion successful, False otherwise
-        """
         try:
             # Load documents
             if os.path.isdir(documents_path):
@@ -148,59 +190,149 @@ class DocumentStore:
             logger.error(f"Failed to ingest documents: {e}")
             return False
 
-    def _ingest_single_document(self, document: Any, collection_type: Optional[str] = None) -> bool:
+    def ingest_single_document(self, document_path: str = None, document_content: str = None) -> Dict[str, Any]:
         """
-        Ingest a single document with classification and metadata enhancement.
+        Comprehensive document ingestion including preprocessing and vector storage.
+
+        This function combines preprocessing and ingestion into a single operation:
+        1. Extract content from file or use provided content
+        2. LLM-based preprocessing (rename, description, abstract, cleaning, classification)
+        3. Ingest into ChromaDB vector store
+        4. Return complete ingestion results
 
         Args:
-            document: LlamaIndex document object
-            collection_type: Optional specific collection type
+            document_path: Path to the document file (optional)
+            document_content: Raw text content (optional)
 
         Returns:
-            True if successful, False otherwise
+            Dictionary containing ingestion results:
+            - success: Boolean indicating success/failure
+            - document_id: Generated document ID
+            - collection_type: Determined collection type
+            - renamed_filename: Generated meaningful filename
+            - description: Brief description
+            - abstract: Detailed summary
+            - cleaned_content: Normalized text content
+            - chroma_document_ids: List of ChromaDB document IDs
+            - file_path: Path to saved processed file
+            - file_size: Size of processed content
+            - error: Error message if failed
         """
+        from datetime import datetime
+        import uuid
+
+        document_id = str(uuid.uuid4())
+        temp_file_path = None
+
         try:
-            # Get document content and filename
-            content = document.text
-            filename = getattr(document, 'metadata', {}).get('file_name', '')
+            # ========== PREPROCESSING PHASE ==========
+            # 0. Create temp directories if they don't exist
+            temp_dir = Path("app_data/temp/documents")
+            temp_dir.mkdir(parents=True, exist_ok=True)
 
-            # Classify document if collection_type not specified
-            if collection_type is None:
-                collection_type, enhanced_metadata, final_filename = self.document_classifier.get_collection_and_metadata(
-                    content, filename
-                )
-                # Update filename if it was generated
-                if not filename or filename == "未知":
-                    document.metadata["file_name"] = final_filename
-            else:
-                # Use provided collection type and enhance metadata
-                base_metadata = getattr(document, 'metadata', {})
-                enhanced_metadata = self.document_classifier.enhance_metadata(
-                    collection_type, content, base_metadata
-                )
+            # Save raw content to temporary file if no document_path provided
+            if document_path is None and document_content is not None:
+                # Create temporary file with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                temp_file_path = temp_dir / f"temp_doc_{timestamp}.txt"
+                with open(temp_file_path, 'w', encoding='utf-8') as f:
+                    f.write(document_content)
+                document_path = str(temp_file_path)
+                logger.info(f"Saved raw content to temporary file: {temp_file_path}")
+            elif document_path is None:
+                return {"success": False, "error": "Either document_path or document_content must be provided"}
 
-            # Update document metadata
-            document.metadata.update(enhanced_metadata)
+            # 1. Use UnstructuredReader to extract structured data
+            reader = UnstructuredReader()
+            documents = reader.load_data(file=Path(document_path))
+            logger.info(f"Finish extracting structured data from {document_path}")
+
+            if not documents:
+                return {"success": False, "error": f"No content could be extracted from {document_path}"}
+
+            # Get the main document content
+            main_document = documents[0]
+            content = main_document.text
+            original_filename = Path(document_path).name if document_path else "未知文档"
+
+            logger.info(f"Extracted {len(content)} characters from document")
+
+            limit=7000
+            if len(content) >= 7000:
+                logger.warning(f"Document content is very large ({len(content)} characters>{limit}), consider chunking")
+
+            # 2. Send data content to LLM for comprehensive preprocessing
+            preprocessing_result = self.document_processor.process_document(content[0:limit], original_filename)
+
+            # Extract all preprocessing results
+            collection_type = preprocessing_result.get("collection_type", COLLECTION_PROJECTS_EXPERIENCE)
+            renamed_filename = preprocessing_result.get("renamed_filename", original_filename)
+            description = preprocessing_result.get("description", "")
+            abstract = preprocessing_result.get("abstract", "")
+            cleaned_content = preprocessing_result.get("cleaned_content", content)
+            base_metadata = preprocessing_result.get("metadata", {})
+
+            # Determine final filename
+            final_filename = renamed_filename
+            if not final_filename.endswith('.txt'):
+                final_filename += ".txt"
+
+            # 3. Save the processed document to permanent location
+            documents_dir = Path("app_data/documents")
+            documents_dir.mkdir(parents=True, exist_ok=True)
+            permanent_file_path = documents_dir / final_filename
+
+            # Save cleaned content to permanent file
+            with open(permanent_file_path, 'w', encoding='utf-8') as f:
+                f.write(cleaned_content)
+            logger.info(f"Saved processed document to: {permanent_file_path}")
+
+            # ========== INGESTION PHASE ==========
+            # Create processed document with enhanced metadata using cleaned content
+            document = Document(
+                text=cleaned_content,
+                metadata={
+                    "document_id": document_id,
+                    "file_name": final_filename,
+                    "description": description,
+                    "collection_type": collection_type,
+                    **base_metadata
+                }
+            )
 
             # Get collection configuration
             config = get_collection_config(collection_type)
             if not config:
-                logger.error(f"Unknown collection type: {collection_type}")
-                return False
+                return {
+                    "success": False,
+                    "error": f"Unknown collection type: {collection_type}"
+                }
 
             # Configure chunking based on collection type
             chunk_config = get_chunk_config(collection_type)
+
             node_parser = SentenceSplitter(
                 chunk_size=chunk_config["chunk_size"],
                 chunk_overlap=chunk_config["chunk_overlap"],
-                separator=" "
+                separator="，,。？！；\n",
+                paragraph_separator="---"
             )
+
+            node_parser_2 = SemanticSplitterNodeParser(
+                buffer_size=1,
+                breakpoint_percentile_threshold=70,
+                embed_model= Settings.embed_model,
+                sentence_splitter=split_by_sep("\n", keep_sep=False),
+            )
+            
+            selected_parser = node_parser_2
 
             # Get or create ChromaDB collection
             chroma_collection = self.chroma_client.get_or_create_collection(
                 name=config["name"],
                 metadata=config["metadata"]
             )
+            logger.info(f"Get collection {collection_type}, start to ingest")
 
             # Create vector store and storage context
             vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
@@ -209,13 +341,15 @@ class DocumentStore:
             # Create or update index for this collection
             if collection_type in self.indexes:
                 # Add document to existing index
-                self.indexes[collection_type].insert(document)
+                inserted_nodes = self.indexes[collection_type].insert(document)
+                # Collect node IDs from inserted nodes
+                chroma_document_ids = [node.node_id for node in inserted_nodes] if inserted_nodes else []
             else:
                 # Create new index with custom node parser
                 index = VectorStoreIndex.from_documents(
                     [document],
                     storage_context=storage_context,
-                    node_parser=node_parser
+                    transformations=[selected_parser]
                 )
                 self.indexes[collection_type] = index
 
@@ -225,28 +359,55 @@ class DocumentStore:
                     similarity_top_k=retrieval_config["similarity_top_k"]
                 )
 
-            logger.info(f"Ingested document into {collection_type}: {filename}")
-            return True
+                # Get node IDs from the created index
+                chroma_document_ids = []
+                try:
+                    # Try to get the document nodes from the index
+                    docstore = index.docstore
+                    if docstore and hasattr(docstore, 'docs'):
+                        chroma_document_ids = list(docstore.docs.keys())
+                except Exception as e:
+                    logger.warning(f"Could not retrieve document IDs: {e}")
+
+            # Store the ChromaDB document IDs in the document metadata for later use
+            document.metadata["chroma_document_ids"] = chroma_document_ids
+
+            logger.info(f"Successfully ingested document into {collection_type}: {final_filename}, ChromaDB IDs: {chroma_document_ids}")
+
+            # ========== RETURN RESULTS ==========
+            return {
+                "success": True,
+                "document_id": document_id,
+                "collection_type": collection_type,
+                "description": description,
+                "abstract": abstract,
+                "cleaned_content": cleaned_content,
+                "chroma_document_ids": chroma_document_ids,
+                "file_path": str(permanent_file_path),
+                "file_size": len(cleaned_content.encode('utf-8')),
+                "final_filename": final_filename
+            }
 
         except Exception as e:
             logger.error(f"Failed to ingest single document: {e}")
-            return False
+            return {
+                "success": False,
+                "error": str(e),
+                "document_id": document_id
+            }
+        finally:
+            # Clean up temporary file if it was created from raw content
+            if temp_file_path and temp_file_path.exists():
+                try:
+                    temp_file_path.unlink()
+                    logger.info(f"Cleaned up temporary file: {temp_file_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temporary file {temp_file_path}: {cleanup_error}")
     
     def search_documents(self,
                         query_text: str,
                         collection_types: Optional[List[str]] = None,
                         top_k: int = 5) -> List[Dict[str, Any]]:
-        """
-        Search for relevant documents across specified collections.
-
-        Args:
-            query_text: Search query
-            collection_types: List of collection types to search, if None searches all
-            top_k: Number of top results to return per collection
-
-        Returns:
-            List of relevant document chunks with metadata
-        """
         if not self.retrievers:
             logger.error("No retrievers available. Please ingest documents first.")
             return []
@@ -305,17 +466,6 @@ class DocumentStore:
                             query_text: str,
                             collection_types: Optional[List[str]] = None,
                             max_tokens: int = 2000) -> str:
-        """
-        Get concatenated document context for CrewAI agents from specified collections.
-
-        Args:
-            query_text: Query to find relevant context
-            collection_types: List of collection types to search
-            max_tokens: Maximum tokens to return (approximate)
-
-        Returns:
-            Concatenated document context string with collection information
-        """
         results = self.search_documents(query_text, collection_types, top_k=10)
 
         context_parts = []

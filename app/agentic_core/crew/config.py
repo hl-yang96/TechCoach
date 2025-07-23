@@ -9,24 +9,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
-class AgentRole(Enum):
-    """预定义的 Agent 角色"""
-    RESEARCHER = "researcher"
-    ANALYST = "analyst"
-    WRITER = "writer"
-    REVIEWER = "reviewer"
-    COORDINATOR = "coordinator"
-
-
-class TaskType(Enum):
-    """任务类型枚举"""
-    RESEARCH = "research"
-    ANALYSIS = "analysis"
-    WRITING = "writing"
-    REVIEW = "review"
-    COORDINATION = "coordination"
-
-
 @dataclass
 class AgentConfig:
     """Agent 配置类"""
@@ -38,7 +20,6 @@ class AgentConfig:
     max_iter: int = 5
     memory: bool = True
     tools: List[str] = field(default_factory=list)
-    llm_config: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -61,7 +42,7 @@ class CrewConfig:
     tasks: List[TaskConfig] = field(default_factory=list)
     verbose: bool = True
     memory: bool = True
-    process: str = "sequential"  # sequential, hierarchical
+    process: str = "hierarchical"  # sequential, hierarchical
     manager_llm: Optional[Dict[str, Any]] = None
     
     def add_agent(self, agent_config: AgentConfig):

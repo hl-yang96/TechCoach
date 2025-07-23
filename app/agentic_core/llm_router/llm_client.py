@@ -17,6 +17,8 @@ from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_anthropic import ChatAnthropic
 
+from crewai import LLM
+
 class LLMProvider(str, Enum):
     KIMI = "kimi"
     OPENAI = "openai"
@@ -31,7 +33,7 @@ class LLMConfig(BaseModel):
     model: str
     api_base: Optional[str] = None
     temperature: float = 0.7
-    max_tokens: int = 2000
+    max_tokens: int = 8192
 
 
 class LLMClient:
@@ -40,6 +42,7 @@ class LLMClient:
         self.config_path = config_path or self._get_default_config_path()
         self.config = self._load_config()
         self.client = self._create_client()
+        self.crew_client = self._create_crew_client()
     
     def _get_default_config_path(self) -> str:
         project_root = Path(__file__).parent.parent.parent.parent
@@ -113,6 +116,42 @@ class LLMClient:
                 max_tokens=config.max_tokens
             )
     
+    def _create_crew_client(self):
+        config = self.config
+
+        if config.provider == 'claude':
+            return LLM(
+                model=f"anthropic/{config.model}",
+                temperature=config.temperature,
+                base_url=config.api_base,
+                api_key=config.api_key,
+                max_tokens=config.max_tokens
+            )
+        elif config.provider == 'gemini':
+            return LLM(
+                api_key=config.api_key,
+                model=f"gemini/{config.model}",
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+                base_url=config.api_base
+            )
+        elif config.provider == 'deepseek':
+            return LLM(
+                api_key=config.api_key,
+                model=f"deepseek/{config.model}",
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+                base_url=config.api_base
+            )
+        else:
+            return LLM(
+                api_key=config.api_key,
+                model=f"openai/{config.model}",
+                base_url=config.api_base,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens
+            )
+
     def chat(self, message: str) -> str:
         try:
             response = self.client.invoke(message)
@@ -123,8 +162,11 @@ class LLMClient:
     def get_config(self) -> LLMConfig:
         return self.config
     
-    def get_base_llm_client():
+    def get_base_llm_client(self):
         return self.client
+    
+    def get_base_crew_client(self):
+        return self.crew_client
 
 
 # Global LLM client instance

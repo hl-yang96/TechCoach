@@ -26,12 +26,15 @@ class ChromaDBClient:
     def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
         """
         Initialize ChromaDB client.
-        
+
         Args:
             host: ChromaDB host (defaults to CHROMA_HOST env var or 'localhost')
             port: ChromaDB port (defaults to CHROMA_PORT env var or 8000)
         """
         self.host = host or os.getenv("CHROMA_HOST", "localhost")
+        # Handle Docker service name in local development
+        if self.host == "chroma":
+            self.host = "localhost"
         self.port = port or int(os.getenv("CHROMA_PORT", "8000"))
         self.client: Optional[chromadb.HttpClient] = None
         self._collections: Dict[str, Any] = {}
@@ -71,16 +74,6 @@ class ChromaDBClient:
             return False
     
     def get_or_create_collection(self, name: str, metadata: Optional[Dict] = None) -> Any:
-        """
-        Get existing collection or create new one.
-        
-        Args:
-            name: Collection name
-            metadata: Optional metadata for the collection
-            
-        Returns:
-            ChromaDB collection object
-        """
         if not self.client:
             raise RuntimeError("ChromaDB client not connected. Call connect() first.")
         
@@ -89,15 +82,17 @@ class ChromaDBClient:
         
         try:
             # Try to get existing collection first
+            logger.info(f"Start get existing collection: {type(name)}:{name}")
             collection = self.client.get_collection(name=name)
-            logger.info(f"Retrieved existing collection: {name}")
+            
         except Exception:
+            logger.info(f"No existing, create new collection: {name}, metadata: {metadata}")
             # Create new collection if it doesn't exist
             collection = self.client.create_collection(
                 name=name,
-                metadata=metadata or {}
+                metadata=metadata if metadata!=None else {}
             )
-            logger.info(f"Created new collection: {name}")
+            logger.info(f"Finish created new collection: {name}")
         
         self._collections[name] = collection
         return collection
@@ -115,15 +110,6 @@ class ChromaDBClient:
             return []
     
     def delete_collection(self, name: str) -> bool:
-        """
-        Delete a collection.
-        
-        Args:
-            name: Collection name to delete
-            
-        Returns:
-            True if deletion successful, False otherwise
-        """
         if not self.client:
             raise RuntimeError("ChromaDB client not connected. Call connect() first.")
         
@@ -138,15 +124,8 @@ class ChromaDBClient:
             return False
     
     def reset_database(self) -> bool:
-        """
-        Reset entire ChromaDB database (WARNING: Deletes all data).
-        
-        Returns:
-            True if reset successful, False otherwise
-        """
         if not self.client:
             raise RuntimeError("ChromaDB client not connected. Call connect() first.")
-        
         try:
             self.client.reset()
             self._collections.clear()
@@ -157,15 +136,6 @@ class ChromaDBClient:
             return False
     
     def get_collection_info(self, name: str) -> Dict[str, Any]:
-        """
-        Get information about a collection.
-        
-        Args:
-            name: Collection name
-            
-        Returns:
-            Dictionary with collection information
-        """
         if not self.client:
             raise RuntimeError("ChromaDB client not connected. Call connect() first.")
         
