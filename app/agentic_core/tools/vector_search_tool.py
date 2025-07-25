@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
-from ..rag.document_store import DocumentStore
+from ..rag.document_store import DocumentStore, get_document_store
 from ..rag.config import get_all_collection_types, get_collection_config
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -36,15 +36,16 @@ class VectorSearchInput(BaseModel):
     )
     collections: Optional[List[str]] = Field(
         default=None,
-        description="要搜索的集合列表。可选值: resumes, projects_experience, job_postings, interviews, interview_qna_bank, code_analysis, industry_trends。如果为空则搜索所有可用集合"
+        description="要搜索的集合列表。可选值: resumes, projects_experience, job_postings。如果为空则搜索所有可用集合"
+        # description="要搜索的集合列表。可选值: resumes, projects_experience, job_postings, interviews, interview_qna_bank, code_analysis, industry_trends。如果为空则搜索所有可用集合"
     )
     top_k: int = Field(
         default=5,
         description="返回的最相关结果数量，默认为5"
     )
     min_score: float = Field(
-        default=0.0,
-        description="最小相关性分数阈值，低于此分数的结果将被过滤 (在当前数据质量下,一般情况最高相关性只达到0.6)"
+        default=0.4,
+        description="最小相关性分数阈值，低于此分数的结果将被过滤 (在当前数据质量下,一般情况最高相关性只达到0.6)，默认0.4"
     )
 
 
@@ -58,25 +59,23 @@ class VectorSearchTool(BaseTool):
 
     name: str = "vector_search"
     description: str = """
-    向量数据库查询工具。用于在文档集合中搜索与查询相关的内容。
+    向量数据库查询工具，用于在文档集合中搜索与查询相关的内容。
 
     支持的集合类型：
     - resumes: 个人简历
     - projects_experience: 项目和工作经验
     - job_postings: 职位招聘信息
-    - interviews: 面试记录
-    - interview_qna_bank: 面试题库
-    - code_analysis: 代码分析报告
-    - industry_trends: 行业趋势报告
-
+    
     返回结构化的搜索结果，包含来源文件、文本内容、相关性分数等信息。
+
+    注意: 在调用工具生成结构化参数的时候，外层不要加方括号
     """
     args_schema: type[BaseModel] = VectorSearchInput
 
     # Use model_config to allow arbitrary types and exclude document_store from validation
     model_config = {"arbitrary_types_allowed": True}
     
-    def __init__(self, document_store: DocumentStore, **kwargs):
+    def __init__(self, **kwargs):
         """
         初始化向量搜索工具
 
@@ -85,7 +84,7 @@ class VectorSearchTool(BaseTool):
         """
         super().__init__(**kwargs)
         # Store document_store as instance attribute, not part of Pydantic model
-        self._document_store = document_store
+        self._document_store = get_document_store()
 
     @property
     def document_store(self) -> DocumentStore:
@@ -97,7 +96,7 @@ class VectorSearchTool(BaseTool):
         query: str,
         collections: Optional[List[str]] = None,
         top_k: int = 5,
-        min_score: float = 0.0
+        min_score: float = 0.4
     ) -> str:
         try:
             if collections:
@@ -196,13 +195,3 @@ class VectorSearchTool(BaseTool):
     def get_collection_info(self, collection_type: str) -> Dict[str, Any]:
         """获取集合信息"""
         return get_collection_config(collection_type)
-
-async def new_vector_search_tool() -> VectorSearchTool:
-    document_store = DocumentStore()
-    res = await document_store.initialize()
-    if not res:
-        raise RuntimeError("Failed to initialize DocumentStore for VectorSearchTool.")
-    
-    tool = VectorSearchTool(document_store=document_store)
-    logger.info("VectorSearchTool initialized successfully.")
-    return tool

@@ -26,11 +26,19 @@ providers:
     model: "gemini-pro"
     api_base: "https://generativelanguage.googleapis.com/v1beta"
     
-  deepseek:
+  # deepseek:
+  #   api_key: null  # Set your DeepSeek API key here or use DEEPSEEK_API_KEY env var
+  #   model: "deepseek-chat"
+  #   api_base: "https://api.deepseek.com/v1"
+  
+  deepseek:  # by siliconflow
     api_key: null  # Set your DeepSeek API key here or use DEEPSEEK_API_KEY env var
-    model: "deepseek-chat"
-    api_base: "https://api.deepseek.com/v1"
+    model: "Pro/deepseek-ai/DeepSeek-R1"          # limitation: tool call param misunderstanding
+    # model: "Qwen/Qwen3-235B-A22B-Instruct-2507"  # limit by TPM 10000
+    # model: "Pro/moonshotai/Kimi-K2-Instruct"
+    # model: "Pro/deepseek-ai/DeepSeek-V3"
+    api_base: "https://api.siliconflow.cn/v1"    
 
 # Model settings
-temperature: 0.7
-max_tokens: 8192
+temperature: 0.5
+max_tokens: 16384

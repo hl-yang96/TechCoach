@@ -49,9 +49,6 @@ class DocumentStore:
     - Provide rich context for agents
     - Support multiple specialized collections based on user stories
     """
-
-    
-
     
     def __init__(self, chroma_host: Optional[str] = None, chroma_port: Optional[int] = None):
         """
@@ -617,3 +614,9 @@ class DocumentStore:
             }
         except Exception as e:
             return {"error": str(e)}
+
+global_document_store = DocumentStore()
+
+def get_document_store() -> DocumentStore:
+    """Get the global document store instance."""
+    return global_document_store

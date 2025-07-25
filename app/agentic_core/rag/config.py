@@ -115,66 +115,66 @@ COLLECTION_CONFIGS: Dict[str, Dict[str, Any]] = {
         "optional_metadata_fields": ["salary_range", "location", "experience_level"]
     },
     
-    # Phase 2 Collections
-    str(COLLECTION_INTERVIEWS): {
-        "name": "interviews",
-        "description": "存储所有面试的记录、问题和反馈。用于复盘、发现知识盲区和预测高频考点。",
-        "metadata": {
-            "type": "interview",
-            "purpose": "interview_prep",
-            "phase": 2
-        },
-        "chunk_size": CHUNK_SIZE_INTERVIEWS,
-        "chunk_overlap": CHUNK_OVERLAP_INTERVIEWS,
-        "similarity_top_k": SIMILARITY_TOP_K_INTERVIEWS,
-        "required_metadata_fields": ["company_name", "job_title", "interview_round", "result", "interview_date"],
-        "optional_metadata_fields": ["interviewer", "difficulty", "feedback"]
-    },
+    # # Phase 2 Collections
+    # str(COLLECTION_INTERVIEWS): {
+    #     "name": "interviews",
+    #     "description": "存储所有面试的记录、问题和反馈。用于复盘、发现知识盲区和预测高频考点。",
+    #     "metadata": {
+    #         "type": "interview",
+    #         "purpose": "interview_prep",
+    #         "phase": 2
+    #     },
+    #     "chunk_size": CHUNK_SIZE_INTERVIEWS,
+    #     "chunk_overlap": CHUNK_OVERLAP_INTERVIEWS,
+    #     "similarity_top_k": SIMILARITY_TOP_K_INTERVIEWS,
+    #     "required_metadata_fields": ["company_name", "job_title", "interview_round", "result", "interview_date"],
+    #     "optional_metadata_fields": ["interviewer", "difficulty", "feedback"]
+    # },
     
-    str(COLLECTION_INTERVIEW_QNA_BANK): {
-        "name": "interview_qna_bank",
-        "description": "从互联网、论坛、GitHub等渠道收集的通用面试题库，用于补充和扩展个人面试经验，进行模拟训练。",
-        "metadata": {
-            "type": "qna_bank",
-            "purpose": "interview_training",
-            "phase": 2
-        },
-        "chunk_size": CHUNK_SIZE_QNA_BANK,
-        "chunk_overlap": CHUNK_OVERLAP_QNA_BANK,
-        "similarity_top_k": SIMILARITY_TOP_K_QNA_BANK,
-        "required_metadata_fields": ["source", "job_domain", "question_type"],
-        "optional_metadata_fields": ["difficulty", "frequency", "tags"]
-    },
+    # str(COLLECTION_INTERVIEW_QNA_BANK): {
+    #     "name": "interview_qna_bank",
+    #     "description": "从互联网、论坛、GitHub等渠道收集的通用面试题库，用于补充和扩展个人面试经验，进行模拟训练。",
+    #     "metadata": {
+    #         "type": "qna_bank",
+    #         "purpose": "interview_training",
+    #         "phase": 2
+    #     },
+    #     "chunk_size": CHUNK_SIZE_QNA_BANK,
+    #     "chunk_overlap": CHUNK_OVERLAP_QNA_BANK,
+    #     "similarity_top_k": SIMILARITY_TOP_K_QNA_BANK,
+    #     "required_metadata_fields": ["source", "job_domain", "question_type"],
+    #     "optional_metadata_fields": ["difficulty", "frequency", "tags"]
+    # },
     
-    str(COLLECTION_CODE_ANALYSIS): {
-        "name": "code_analysis",
-        "description": "（针对开发者）存储对用户代码库的静态分析结果和摘要。用于客观评估技术能力和梳理技术亮点。",
-        "metadata": {
-            "type": "code_analysis",
-            "purpose": "skill_assessment",
-            "phase": 2
-        },
-        "chunk_size": CHUNK_SIZE_CODE_ANALYSIS,
-        "chunk_overlap": CHUNK_OVERLAP_CODE_ANALYSIS,
-        "similarity_top_k": SIMILARITY_TOP_K_CODE_ANALYSIS,
-        "required_metadata_fields": ["repo_name", "primary_language", "key_frameworks", "analysis_date"],
-        "optional_metadata_fields": ["complexity_score", "test_coverage", "code_quality"]
-    },
+    # str(COLLECTION_CODE_ANALYSIS): {
+    #     "name": "code_analysis",
+    #     "description": "（针对开发者）存储对用户代码库的静态分析结果和摘要。用于客观评估技术能力和梳理技术亮点。",
+    #     "metadata": {
+    #         "type": "code_analysis",
+    #         "purpose": "skill_assessment",
+    #         "phase": 2
+    #     },
+    #     "chunk_size": CHUNK_SIZE_CODE_ANALYSIS,
+    #     "chunk_overlap": CHUNK_OVERLAP_CODE_ANALYSIS,
+    #     "similarity_top_k": SIMILARITY_TOP_K_CODE_ANALYSIS,
+    #     "required_metadata_fields": ["repo_name", "primary_language", "key_frameworks", "analysis_date"],
+    #     "optional_metadata_fields": ["complexity_score", "test_coverage", "code_quality"]
+    # },
     
-    str(COLLECTION_INDUSTRY_TRENDS): {
-        "name": "industry_trends",
-        "description": "存储行业报告和技术趋势分析文章。用于提升对话的战略高度和行业视野。",
-        "metadata": {
-            "type": "industry_trends",
-            "purpose": "market_insight",
-            "phase": 2
-        },
-        "chunk_size": CHUNK_SIZE_INDUSTRY_TRENDS,
-        "chunk_overlap": CHUNK_OVERLAP_INDUSTRY_TRENDS,
-        "similarity_top_k": SIMILARITY_TOP_K_INDUSTRY_TRENDS,
-        "required_metadata_fields": ["report_source", "publish_date", "key_topics"],
-        "optional_metadata_fields": ["industry", "region", "trend_type"]
-    }
+    # str(COLLECTION_INDUSTRY_TRENDS): {
+    #     "name": "industry_trends",
+    #     "description": "存储行业报告和技术趋势分析文章。用于提升对话的战略高度和行业视野。",
+    #     "metadata": {
+    #         "type": "industry_trends",
+    #         "purpose": "market_insight",
+    #         "phase": 2
+    #     },
+    #     "chunk_size": CHUNK_SIZE_INDUSTRY_TRENDS,
+    #     "chunk_overlap": CHUNK_OVERLAP_INDUSTRY_TRENDS,
+    #     "similarity_top_k": SIMILARITY_TOP_K_INDUSTRY_TRENDS,
+    #     "required_metadata_fields": ["report_source", "publish_date", "key_topics"],
+    #     "optional_metadata_fields": ["industry", "region", "trend_type"]
+    # }
 }
 
 

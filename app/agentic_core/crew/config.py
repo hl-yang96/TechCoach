@@ -25,6 +25,7 @@ class AgentConfig:
 @dataclass
 class TaskConfig:
     """Task 配置类"""
+    name: str
     description: str
     expected_output: str
     agent_role: str
@@ -38,8 +39,8 @@ class CrewConfig:
     """Crew 配置类"""
     name: str
     description: str
-    agents: List[AgentConfig] = field(default_factory=list)
-    tasks: List[TaskConfig] = field(default_factory=list)
+    agents: List[str] = field(default_factory=list)
+    tasks: List[str] = field(default_factory=list)
     verbose: bool = True
     memory: bool = True
     process: str = "hierarchical"  # sequential, hierarchical

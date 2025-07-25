@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 
-from app.agentic_core.rag.document_store import DocumentStore
+from app.agentic_core.rag.document_store import DocumentStore, get_document_store
 from app.agentic_core.rag.chroma_client import ChromaDBClient
 
 from app.shared_kernel.database_service import DocumentDBService
@@ -87,16 +87,6 @@ class DocumentListResponse(BaseModel):
     success: bool
 
 
-async def get_document_store() -> DocumentStore:
-    """Get or create document store instance."""
-    global document_store
-    if document_store is None:
-        document_store = DocumentStore()
-        if not await document_store.initialize():
-            raise HTTPException(status_code=500, detail="Failed to initialize document store")
-    return document_store
-
-
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Check document store health."""
@@ -109,7 +99,7 @@ async def health_check():
         store_initialized = False
         ready_for_agents = False
         try:
-            store = await get_document_store()
+            store = get_document_store()
             store_initialized = True
             ready_for_agents = store.is_ready()
         except Exception:
@@ -140,7 +130,7 @@ async def health_check():
 async def get_collection_stats():
     """Get statistics for the document collection."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
         stats = store.get_collection_stats()
         
         return CollectionStatsResponse(collection=stats)
@@ -153,7 +143,7 @@ async def get_collection_stats():
 async def search_documents(request: SearchRequest):
     """Search for similar documents across specified collections (for CrewAI agents)."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
 
         # Perform search
         results = store.search_documents(
@@ -183,7 +173,7 @@ async def search_documents(request: SearchRequest):
 async def get_context_for_agents(request: ContextRequest):
     """Get concatenated document context for CrewAI agents from specified collections."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
 
         # Get context
         context = store.get_document_context(
@@ -219,7 +209,7 @@ async def ingest_documents(request: IngestDocumentsRequest):
     from pathlib import Path
 
     try:
-        store = await get_document_store()
+        store = get_document_store()
 
         # 0. Validate input - either documents_path or content must be provided
         if not request.documents_path and not request.content:
@@ -344,7 +334,7 @@ async def get_uploaded_documents():
 async def reset_collection(request: ResetCollectionRequest = None):
     """Reset (clear all data from) document collection(s)."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
 
         collection_type = request.collection_type if request else None
 
@@ -382,7 +372,7 @@ async def reset_collection(request: ResetCollectionRequest = None):
 async def check_agent_readiness():
     """Check if document store is ready for CrewAI agents."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
         ready = store.is_ready()
         available_collections = store.get_available_collections()
 
@@ -420,7 +410,7 @@ async def list_collections():
 async def get_collection_info(collection_type: str):
     """Get detailed information about a specific collection."""
     try:
-        store = await get_document_store()
+        store = get_document_store()
         collection_info = store.get_collection_info(collection_type)
 
         return CollectionInfoResponse(

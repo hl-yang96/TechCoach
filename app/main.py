@@ -32,6 +32,11 @@ from app.gateway.middleware.error_handler import ErrorHandlerMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handlers for FastAPI."""
+    
+    # 禁用 httpx 和 httpcore 的日志输出
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
     # Startup
     print("🚀 TechCoach API starting...")
     
@@ -72,21 +77,18 @@ async def lifespan(app: FastAPI):
 async def _initialize_llm_test():
     """Send initial test request to verify LLM functionality."""
     try:
-        print("🧪 Initializing LLM test...")
+        print("🧪 Initializing LLM...")
         
         # Get LLM client
         llm_client = get_llm_client()
         config = llm_client.get_config()
-        
         if not config.api_key:
             print("⚠️ No API key configured for LLM")
             print("Please check config/llm_config.yaml or set relevant environment variables")
             return
-            
-        # Test the client
+        # Test LLM with a simple prompt
         print(f"🎯 Testing LLM with {config.provider}...")
         response = llm_client.chat("Hello, please confirm you can respond.")
-        
         if "Error:" in response:
             print(f"❌ LLM Test Failed: {response}")
         else:
@@ -94,6 +96,15 @@ async def _initialize_llm_test():
             print(f"   Provider: {config.provider}")
             print(f"   Model: {config.model}")
             print(f"   Response: {response.strip()}")
+
+        # Init RAG document store
+        print("📚 Initializing RAG document store...")
+        from app.agentic_core.rag.document_store import get_document_store
+        ret = await get_document_store().initialize()
+        if ret:
+            print("✅ RAG Document Store initialized successfully")
+        else:
+            print("⚠️ RAG Document Store initialization failed")
             
     except Exception as e:
         print(f"❌ LLM Test Failed: {e}")
@@ -127,7 +138,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(ErrorHandlerMiddleware)
 
