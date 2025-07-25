@@ -97,7 +97,7 @@ xxxx领域知识大纲
 }
 """,
         context=[TECHNICAL_KNOWLEDGE_OUTLINE_TASK],
-        agent_role="JSON 格式生成大师"
+        agent_role="JSON 格式转换大师"
     ),
 
     INTERVIEW_QUESTION_BANK_TASK: TaskConfig(
@@ -141,7 +141,7 @@ questions: [
 ]}
 """,
         context=[INTERVIEW_QUESTION_BANK_TASK],
-        agent_role="JSON 格式生成大师"
+        agent_role="JSON 格式转换大师"
     )
 }
 

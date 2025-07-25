@@ -61,9 +61,9 @@ PROFESSIONAL_AGENT_CONFIGS = {
     ),
     
     JSON_FORMAT_GENERATOR_AGENT: AgentConfig(
-        role="JSON 格式生成大师",
-        goal="""你需要将提供的内容按照要求转换为符合要求的 JSON 格式，以便于后续处理和使用。""",
-        backstory="""你是一个经验丰富的 JSON 格式生成大师，你能严格遵循 Task 任务的具体需求，将复杂的内容转换为结构化的 JSON 格式，你能够确保生成的 JSON 数据符合规范，并且生成的结果中不包括任何多余的内容，也不要markdown的代码块等格式。""",
+        role="JSON 格式转换大师",
+        goal="""你需要将提供的内容，按照要求转换为符合要求的 JSON 格式，并严格输出负责 json 规范的原始 json 字符串，以 '{' 开始，不要包含任何其他格式，不要包含 \"```json\" 这样的格式。""",
+        backstory="""你是一个经验丰富的 JSON 格式转换大师，你能严格遵循 Task 任务的具体需求和目标，将复杂的内容转换为结构化的 JSON 格式。""",
         verbose=True,
         allow_delegation=False,
         max_iter=2,

@@ -34,8 +34,8 @@ class GenerateDomainKnowledgeQuestionFlow(Flow[GenerateDomainKnowledgeQuestionSt
             crew_result = domain_outline_crew.kickoff(inputs={"domain": self.state.domain})
             
             # process result to state
- 
-            outline_res = json.loads(crew_result.raw)
+            outline_raw = crew_result.raw
+            outline_res = json.loads(outline_raw[outline_raw.find('{'):outline_raw.rfind('}')+1])  # in cast there would be "```json" or something
             self.state.comments = outline_res["comments"]
             self.state.outline = outline_res["outline"]
             self.state.job_seeker_analysis_result = str(crew_result.tasks_output[0])
@@ -73,7 +73,8 @@ class GenerateDomainKnowledgeQuestionFlow(Flow[GenerateDomainKnowledgeQuestionSt
                 })
                 
                 logger.info(f"面试题库生成结果: {crew_result.raw}")
-                q_list = json.loads(crew_result.raw)["questions"]
+                question_raw = crew_result.raw
+                q_list = json.loads(question_raw[question_raw.find('{'):question_raw.rfind('}')+1])["questions"]
                 questions_result.extend(q_list)
 
             return questions_result
