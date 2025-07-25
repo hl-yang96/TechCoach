@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any
 import logging
 from crewai import Crew, Process
 
-from app.agentic_core.llm_router.llm_client import get_llm_client
+from app.agentic_core.llm_router.llm_client import get_llm_client_manager, LLMProvider
 from app.agentic_core.tools import create_all_tools
 from app.agentic_core.rag.config import EMBEDDING_MODEL_NAME_CREW
 
@@ -115,4 +115,7 @@ class CrewCoordinator:
             raise
     
     def _get_default_manager_llm(self) -> Any:
-        return get_llm_client().get_base_crew_client()
+        cli = get_llm_client_manager().get_client_by_type(LLMProvider.AGENT_PROCESS)
+        if cli:
+            return cli
+        return get_llm_client_manager().get_default_crew_client()

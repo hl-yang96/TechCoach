@@ -20,6 +20,7 @@ class AgentConfig:
     max_iter: int = 5
     memory: bool = True
     tools: List[str] = field(default_factory=list)
+    llm: str = "default"  # 使用默认 LLM 客户端
 
 
 @dataclass

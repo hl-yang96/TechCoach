@@ -9,7 +9,7 @@ import logging
 from crewai import Agent
 
 from .config import AgentConfig
-from ..llm_router.llm_client import LLMClient, get_llm_client
+from ..llm_router.llm_client import LLMProvider, get_llm_client_manager
 from ..tools import TOOL_VECTOR_SEARCH, TOOL_JSON_PARSER, TOOL_READ_FILE, TOOL_GET_EXIST_FILE_LIST
 
 logger = logging.getLogger(__name__)
@@ -30,9 +30,10 @@ PROFESSIONAL_AGENT_CONFIGS = {
         backstory="""你是一位经验丰富的资深职业咨询师，尤其是对于互联网技术方面，你能够精准地对你的用户进行分析。同时你还拥有丰富的文件检索和向量数据库检索经验，你擅长通过对求职者简历、过往项目记录、学习记录等资料的检索，准确提取与用户查询相关的信息，并返回简洁清晰的内容。你习惯分析前全面获取数据，并且依据事实数据来进行分析，而不是凭空生成或胡编乱造。""",
         verbose=True,
         allow_delegation=False, # agent could delegate the task to other agent, niubi...
-        max_iter=5,
+        max_iter=3,
         memory=False, # agent memory, not task context 
-        tools=[TOOL_VECTOR_SEARCH]  # 使用向量检索工具和文件读取工具来获取求职者的背景信息
+        tools=[TOOL_VECTOR_SEARCH],  # 使用向量检索工具和文件读取工具来获取求职者的背景信息
+        llm=get_llm_client_manager().get_crew_client_by_type(LLMProvider.TOOL_CALL)
     ),
 
     INDUSTRY_EXPERT_AGENT: AgentConfig(
@@ -43,7 +44,8 @@ PROFESSIONAL_AGENT_CONFIGS = {
         allow_delegation=False,
         max_iter=2,
         memory=False,
-        tools=[]  # TODO: 待添加具体工具
+        tools=[],  # TODO: 待添加具体工具
+        llm=get_llm_client_manager().get_crew_client_by_type(LLMProvider.CONTENT)
     ),
 
     INTERVIEW_QUESTION_EXPERT_AGENT: AgentConfig(
@@ -55,9 +57,10 @@ PROFESSIONAL_AGENT_CONFIGS = {
         backstory="""你是一位经验丰富的面试官，你能够对不同领域的面试题有非常深入地了解，你不仅能够生成某个领域全面的面试题库，还能够针对性地求职者的简历或者项目经历，深入浅出地生成出一些探测面试者能力的有水平的题目。""",
         verbose=True,
         allow_delegation=True, # agent could delegate the task to other agent
-        max_iter=5,
+        max_iter=3,
         memory=False, # agent memory, not task context
-        tools=[TOOL_VECTOR_SEARCH]
+        tools=[],
+        llm=get_llm_client_manager().get_crew_client_by_type(LLMProvider.CONTENT)
     ),
     
     JSON_FORMAT_GENERATOR_AGENT: AgentConfig(
@@ -68,21 +71,20 @@ PROFESSIONAL_AGENT_CONFIGS = {
         allow_delegation=False,
         max_iter=2,
         memory=False,
-        tools=[]  # 使用 JSON 解析工具来验证生成的 JSON 格式是否正确，但是会导致上下文过大好像...
+        tools=[],  # 使用 JSON 解析工具来验证生成的 JSON 格式是否正确，但是会导致上下文过大好像...
+        llm=get_llm_client_manager().get_crew_client_by_type(LLMProvider.TOOL_CALL)
     )
 }
 
 class AgentManager:
 
-    def __init__(self, llm_client: Optional[LLMClient] = None):
-        self.llm_client = llm_client or get_llm_client().get_base_crew_client()
+    def __init__(self):
         self.agents: Dict[str, Agent] = {}
         self.agent_configs: Dict[str, AgentConfig] = {}
 
     def create_agent(self,
                     agent_config: AgentConfig,
-                    tools: Optional[List[Any]] = None,
-                    llm: Optional[Any] = None) -> Agent:
+                    tools: Optional[List[Any]] = None) -> Agent:
         try:
             final_tools = []
             for tool_name in agent_config.tools:
@@ -101,7 +103,7 @@ class AgentManager:
                 max_iter=agent_config.max_iter,
                 memory=agent_config.memory,
                 tools=final_tools,
-                llm=llm or self.llm_client
+                llm=agent_config.llm or get_llm_client_manager().get_default_crew_client()
             )
             
             logger.info(f"Created agent: {agent_config.role}")
@@ -111,10 +113,10 @@ class AgentManager:
             logger.error(f"Failed to create agent {agent_config.role}: {str(e)}")
             raise
 
-    def create_professional_agent(self, agent_type: str, tools: Optional[List[Any]] = None, llm: Optional[Any] = None) -> Optional[Agent]:
+    def create_professional_agent(self, agent_type: str, tools: Optional[List[Any]] = None) -> Optional[Agent]:
         if agent_type not in PROFESSIONAL_AGENT_CONFIGS:
             logger.error(f"Unknown agent type: {agent_type}")
             return None
         
         agent_config = PROFESSIONAL_AGENT_CONFIGS[agent_type]
-        return self.create_agent(agent_config, tools, llm)
+        return self.create_agent(agent_config, tools)

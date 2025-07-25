@@ -2,43 +2,107 @@
 # Simple single-provider configuration using LangChain
 
 # Choose one provider: kimi, openai, claude, gemini, deepseek
-provider: "deepseek"
+provider: 
+  default: "deepseek_r1_volcano"
+  agent_process: "kimi_k2_silconflow"
+  tool_call: "kimi_k2_silconflow"
+  content: "deepseek_r1_volcano"
+
+setting:
+  # Model settings
+  temperature: 0.5
+  max_tokens: 16384
 
 # Provider-specific configuration
 providers:
   kimi:
-    api_key: null  # Set your Kimi API key here or use KIMI_API_KEY env var
+    api_key: null
+    api_key_env: KIMI_API_KEY
     model: "kimi-k2-0711-preview"
     api_base: "https://api.moonshot.cn/v1"
     
   openai:
-    api_key: null  # Set your OpenAI API key here or use OPENAI_API_KEY env var
+    api_key: null
+    api_key_env: OPENAI_API_KEY
     model: "gpt-4o-mini"
     api_base: "https://api.openai.com/v1"
     
   claude:
-    api_key: null  # Set your Claude API key here or use ANTHROPIC_API_KEY env var
+    api_key: null
+    api_key_env: ANTHROPIC_API_KEY
     model: "claude-3-5-sonnet-20241022"
     api_base: "https://api.anthropic.com/v1/messages"
     
   gemini:
-    api_key: null  # Set your Gemini API key here or use GEMINI_API_KEY env var
+    api_key: null
+    api_key_env: GEMINI_API_KEY
     model: "gemini-pro"
     api_base: "https://generativelanguage.googleapis.com/v1beta"
     
-  # deepseek:
-  #   api_key: null  # Set your DeepSeek API key here or use DEEPSEEK_API_KEY env var
-  #   model: "deepseek-chat"
-  #   api_base: "https://api.deepseek.com/v1"
-  
-  deepseek:  # by siliconflow
-    api_key: null  # Set your DeepSeek API key here or use DEEPSEEK_API_KEY env var
-    model: "Pro/deepseek-ai/DeepSeek-R1"          # limitation: tool call param misunderstanding
-    # model: "Qwen/Qwen3-235B-A22B-Instruct-2507"  # limit by TPM 10000
-    # model: "Pro/moonshotai/Kimi-K2-Instruct"
-    # model: "Pro/deepseek-ai/DeepSeek-V3"
-    api_base: "https://api.siliconflow.cn/v1"    
+  deepseek:
+    api_key: null
+    api_key_env: DEEPSEEK_API_KEY
+    model: "deepseek-chat"
+    api_base: "https://api.deepseek.com/v1"
 
-# Model settings
-temperature: 0.5
-max_tokens: 16384
+  qwen3_235B:
+    api_key: null
+    api_key_env: QWEN_API_KEY
+    model: "qwen3-235b-a22b-instruct-2507"
+    api_base: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    temperature: 0.3
+    max_tokens: 32000
+  
+  deepseek_r1_silconflow:
+    api_key: null
+    api_key_env: SILCONFLOW_API_KEY
+    model: "Pro/deepseek-ai/DeepSeek-R1"          # limitation: tool call param misunderstanding
+    api_base: "https://api.siliconflow.cn/v1"
+    temperature: 0.7
+    max_tokens: 16384
+
+  deepseek_v3_silconflow:
+    api_key: null
+    api_key_env: SILCONFLOW_API_KEY
+    model: "Pro/deepseek-ai/DeepSeek-V3"
+    api_base: "https://api.siliconflow.cn/v1"
+    temperature: 0.7
+    max_tokens: 16384
+
+  qwen3_235B_silconflow:
+    api_key: null
+    api_key_env: SILCONFLOW_API_KEY
+    model: "Qwen/Qwen3-235B-A22B-Instruct-2507"
+    api_base: "https://api.siliconflow.cn/v1"
+
+  kimi_k2_silconflow:
+    api_key: null
+    api_key_env: SILCONFLOW_API_KEY
+    model: "Pro/moonshotai/Kimi-K2-Instruct"
+    api_base: "https://api.siliconflow.cn/v1"
+    temperature: 0.3
+    max_tokens: 32000
+
+  deepseek_r1_volcano:
+    api_key: null
+    api_key_env: VOLCANE_API_KEY
+    model: "deepseek-r1-250528"          # limitation: tool call param misunderstanding
+    api_base: "https://ark.cn-beijing.volces.com/api/v3"
+    temperature: 0.7
+    max_tokens: 16384
+
+  deepseek_v3_volcano:
+    api_key: null
+    api_key_env: VOLCANE_API_KEY
+    model: "deepseek-v3-250324"
+    api_base: "https://ark.cn-beijing.volces.com/api/v3"
+    temperature: 0.7
+    max_tokens: 16384
+
+  kimi_k2_volcano:
+    api_key: null
+    api_key_env: VOLCANE_API_KEY
+    model: "kimi-k2-250711"
+    api_base: "https://ark.cn-beijing.volces.com/api/v3"
+    temperature: 0.3
+    max_tokens: 32000

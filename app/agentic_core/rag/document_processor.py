@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Any
 
-from ..llm_router.llm_client import get_llm_client
+from ..llm_router.llm_client import LLMProvider, get_llm_client_manager
 from .config import (
     DOCUMENT_PREPROCESSING_PROMPT,
     COLLECTION_CONFIGS,
@@ -65,7 +65,7 @@ class DocumentProcessor:
 
     def __init__(self):
         """Initialize the document processor."""
-        self.llm_client = get_llm_client()
+        self.llm_client = get_llm_client_manager()
         
     def process_document(self, document_content: str, filename: str = "") -> Dict[str, Any]:
         """
@@ -93,7 +93,7 @@ class DocumentProcessor:
                 filename=filename or "未知"
             )
             # Get preprocessing results from LLM
-            response_raw = self.llm_client.chat(prompt)
+            response_raw = self.llm_client.chat(prompt,LLMProvider.TOOL_CALL)
             # Parse JSON response
             try:
                 response_json = response_raw[response_raw.find('{'):response_raw.rfind('}')+1]

@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.shared_kernel.database import init_database, check_database
 
 # Import LLM integration  
-from app.agentic_core.llm_router.llm_client import get_llm_client
+from app.agentic_core.llm_router.llm_client import get_llm_client_manager
 
 import logging
 
@@ -80,15 +80,15 @@ async def _initialize_llm_test():
         print("🧪 Initializing LLM...")
         
         # Get LLM client
-        llm_client = get_llm_client()
-        config = llm_client.get_config()
+        llm_client_mgr = get_llm_client_manager()
+        config = llm_client_mgr.get_config()
         if not config.api_key:
             print("⚠️ No API key configured for LLM")
             print("Please check config/llm_config.yaml or set relevant environment variables")
             return
         # Test LLM with a simple prompt
         print(f"🎯 Testing LLM with {config.provider}...")
-        response = llm_client.chat("Hello, please confirm you can respond.")
+        response = llm_client_mgr.chat("Hello, please confirm you can respond.")
         if "Error:" in response:
             print(f"❌ LLM Test Failed: {response}")
         else:
